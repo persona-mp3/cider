@@ -55,6 +55,7 @@ const (
 	PaintMessage MessageType = iota
 	ChatMessage
 	GameMessage
+	NewGameMessage
 )
 
 type Message struct {
@@ -124,9 +125,44 @@ func handleConnection(mgr *manager, conn net.Conn) {
 	}
 }
 
+func sendServerMsg(mgr *manager, msg Message) {
+	log.Println(" [debug] sending server message")
+	dest, found := connectedUsers[msg.Dest]
+	if !found {
+		slog.Info("could not find recipient for server", "found", found)
+		return
+	}
+
+	if dest == nil {
+		slog.Info("dest is nill, client disconnected?", "conn", dest)
+		mgr.remove <- msg.Dest
+		return
+	}
+
+	content, err := toJson(msg)
+	if err != nil {
+		slog.Error("could not marshall server response to json", "err", err)
+		return
+	}
+
+	if _, err := dest.Write(content); err != nil {
+		slog.Error("writing to dest socket failed", "err", err)
+		mgr.remove <- msg.Dest
+		return
+	}
+
+	log.Println(" [debug] successfully written for server")
+}
+
 func sendMessage(mgr *manager, msg Message) {
+	// if we can't find the recipeient
 	var notFoundRes = NotFoundResponse
 	notFoundRes.Dest = msg.From
+
+	if msg.From == serverId {
+		sendServerMsg(mgr, msg)
+		return
+	}
 
 	id := msg.Dest
 	senderId := msg.From

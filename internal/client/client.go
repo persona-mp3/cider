@@ -51,6 +51,14 @@ func parseServerResponse(res shared.Message) {
 		printPaint(res.Content)
 	case shared.ChatMessage:
 		fmt.Printf("  #%d:  %2s\n", res.From, res.Content)
+	case shared.GameMessage:
+		fmt.Println("game_msg")
+		fmt.Printf("  #%d:  %2s\n", res.From, res.Content)
+	case shared.NewGameMessage:
+		fmt.Println("new_game_msg")
+		fmt.Printf("  #%d:  %2s\n", res.From, res.Content)
+	default:
+		fmt.Printf("  #%d:  %2s\n", res.From, res.Content)
 	}
 }
 

@@ -6,6 +6,7 @@ const (
 	PaintMessage MessageType = iota
 	ChatMessage
 	GameMessage
+	NewGameMessage
 )
 
 type Message struct {

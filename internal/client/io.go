@@ -12,6 +12,8 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/persona-mp3/shared"
 )
@@ -41,12 +43,25 @@ func writeToServer(msg string, conn net.Conn) error {
 	// for future auth and to avoid confusion.
 	// But for now, we could
 	// just hardcode it
+	colonDelim := ":"
 	req := shared.Message{
 		Dest:        2,
 		From:        1,
-		MessageType: shared.ChatMessage,
+		MessageType: shared.NewGameMessage,
 		Content:     msg,
 	}
+	if strings.Contains(msg, ":") {
+		id, _, _ := strings.Cut(msg, colonDelim)
+		parsedId, err := strconv.Atoi(id)
+		if err != nil {
+			fmt.Printf("could not parse %s to int, %s\n", id, err)
+			return fmt.Errorf("could not parsed id: %s %w", id, err)
+		}
+
+		req.Dest = parsedId
+	}
+
+	// fmt.Println("sending to: ", req.Dest)
 
 	content, err := json.Marshal(req)
 	if err != nil {
@@ -94,7 +109,6 @@ func readFromServer(ctx context.Context, conn net.Conn) <-chan shared.Message {
 						slog.Error("unexpected error", "err", err)
 					}
 				}
-
 
 				response <- msg
 			}
