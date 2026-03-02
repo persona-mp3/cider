@@ -1,0 +1,48 @@
+23:41
+yeah, i was able to get clients to 
+send GameMessages over the network
+by simply specifing the recipeint and message type 
+in the msg the client want's to send. This is horrible
+as this is supposed to be taken care of at the 
+api boundary, not ux concern. BUT, it's good enough 
+for now, infact, it's slightly convincing me to use 
+packet framing, as i think it allows for more dynamic 
+cases, although more teidous, as compared  to using
+json. Or maybe this might be an oppurtunity to fully 
+explore protobufs? I'll see what it can do
+
+But atm, I want the client to include their ssids for 
+the game, so the srver can reference their play session
+I think that's easier. So now, the server just appends
+the ssid into the NewGameMessage content, using ';'
+as a delimeter, and ssid as the 'key' if you may.
+So the client sees something like this:
+	 ```
+	 Message {
+			 MessageType: NewGameMessage,
+			 From: secretServerId,
+			 Dest: your-future-uuid,
+			 Content: "Game starting;ssid928018u0=j23",
+	 }
+	 ```
+
+	 And the server
+	 ```
+	 Messagee {
+			 From: you,
+			 Dest: away,
+			 Content: "your-play;ssid",
+			 MessageType: GameMessage
+	 }
+	 ```
+
+Violation of these rules will automatically declare
+the other player winner, easier that way atm
+
+And slowly, we can see how Protobufs, or binary framing look 
+more like the appealing solution, otherswise, we'd need 
+excessive tracking and almost sentience for our app to 
+know when to switch btwn normal message or game message
+
+TODO-LATER:
+- Client should append their ssid for every GameMessage they send

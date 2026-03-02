@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"math/rand"
@@ -100,24 +101,22 @@ func (mgr *manager) startGame(ctx context.Context, ssid int, play chan Message) 
 	// msg.Dest = conn2.id
 	// mgr.deliver <- msg
 
-	go func() {
-		log.Println(" [debug] inside go routine")
-		for {
-			select {
-			case newplay, ok := <-play:
-				if !ok {
-					log.Println(" [debug] play channel closed!")
-					return
-				}
-
-				log.Printf(" [debug] [NEW-PLAY]: %+v\n", newplay)
-
-			case <-ctx.Done():
-				log.Println(" [game-sess] calling home, parent exiting")
+	log.Println(" [debug] inside go routine")
+	for {
+		select {
+		case newplay, ok := <-play:
+			if !ok {
+				log.Println(" [debug] play channel closed!")
 				return
 			}
+
+			log.Printf(" [debug] [NEW-PLAY]: %+v\n", newplay)
+
+		case <-ctx.Done():
+			log.Println(" [game-sess] calling home, parent exiting")
+			return
 		}
-	}()
+	}
 
 }
 
@@ -151,12 +150,22 @@ func (mgr *manager) createGameSession(from int, dest int) int {
 	}
 
 	log.Println("[debug] created game session succesfully")
+	welcomeMsg := `
+	The game is about to be start...
+	Buckle up brochachos
+	`
+
+	// conn1, conn2 := session.players[0], session.players[1]
+	msg := Message{
+		From:        serverId,
+		MessageType: ChatMessage,
+		Content:     fmt.Sprintf("%s;ssid%d", welcomeMsg, sessionId),
+		Dest:        from,
+	}
+
+	mgr.deliver <- msg
+	msg.Dest = dest
+	mgr.deliver <- msg
 	return sessionId
 }
 
-// func handleGameMessage(mgr *manager, msg Message) {
-// 	session, found := mgr.sessions[msg.From]
-// 	if !found {
-// 		log.Println("")
-// 	}
-// }
