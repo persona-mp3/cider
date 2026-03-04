@@ -32,7 +32,7 @@ go run main.go # you should see server output and port it's listening on as of 
 On another terminal, you can also run the client, but at the moment
 you can only send messages to the server
 ```bash
-go run internal/client/*.go # compiles all the client-files
+go run internal/client/main.go # compiles all the client-files
 ```
 You should recieve a welcome message from the server and you should also be
 able to send messages to the server
