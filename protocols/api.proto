@@ -1,0 +1,50 @@
+syntax = "proto3";
+package protocol;
+
+import "google/protobuf/timestamp.proto";
+option go_package = "github.com/persona-mp3/protocols";
+
+message Packet {
+  int32 From = 1;
+  int32 Dest = 2;
+
+  oneof Payload {
+    PaintMessage paint = 3;
+    ChatMessage chat = 4;
+    GameMessage game = 5;
+    NewGameMessage newGame = 6;
+  }
+
+  google.protobuf.Timestamp last_updated = 7;
+}
+
+message ChatMessage {
+  string Content = 1;
+}
+
+message User {
+  string Username = 1;
+  int32 Id = 2;
+}
+
+// we're using one-time id because when a client
+// connects for the firstime, they need to provide 
+// basic creds like 'username', 'password' and 
+// we can check against the database.
+// after that we assing them a UUID that will 
+// be used to identify them through out their whole 
+// lifetime
+message PaintMessage {
+  int32 OneTimeId = 1;
+  repeated User ConnectedUsers = 2;
+}
+
+message GameMessage {
+  string SSID = 1;
+  string Play = 2;
+}
+
+message NewGameMessage {
+  int32 From  = 1;
+  int32 Dest = 2;
+}

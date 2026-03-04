@@ -45,7 +45,7 @@ func Start(mgr *manager) error {
 			continue
 		}
 
-		go handleConnection(mgr, conn)
+		go handleConnection_dep(mgr, conn)
 	}
 }
 
@@ -65,7 +65,7 @@ type Message struct {
 	Dest        int         `json:"dest"`
 }
 
-func handleConnection(mgr *manager, conn net.Conn) {
+func handleConnection_dep(mgr *manager, conn net.Conn) {
 	var paintMsg = createPaintMessage()
 	var newClient = client{
 		id:   len(connectedUsers) + 1,
