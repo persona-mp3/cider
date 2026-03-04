@@ -14,11 +14,11 @@ import (
 
 const (
 	serverPort = 4000
-	serevrId   = 0
+	serverId   = 0
 )
 
 var (
-	ErrMalformedRequest    = errors.New("Malformed Message")
+	ErrMalformedPacket     = errors.New("Malformed Packet sent")
 	ErrUserNotFound        = errors.New("Could not contact user")
 	ErrInternalServerError = errors.New("Internal server error, please wait")
 )
@@ -26,11 +26,6 @@ var (
 type userId int
 
 var activeConnections = make(map[userId]net.Conn)
-
-// stub for the moment
-func loadEnv() map[string]any {
-	return make(map[string]any)
-}
 
 func RunServer(mgr *manager) error {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
@@ -100,7 +95,6 @@ func handleMessage(mgr *manager, msg *pb.Packet) {
 	log.Println("handling packet")
 	log.Printf(" %+v\n", msg)
 
-	log.Println(" [debug] payload ->", msg.GetPayload())
 	// we'd have to change the manager a little bit
 	// because it could handle sending normal messages
 	// but also handle game logic?
@@ -124,7 +118,6 @@ func handleMessage(mgr *manager, msg *pb.Packet) {
 
 // checks if the packet the sender of the packet is in our database
 func authClient(id int32) bool {
-	log.Printf(" [debug] checking %d is  in db\n", id)
 	return true
 }
 
@@ -139,7 +132,6 @@ func extractPacket(conn net.Conn) ([]byte, error) {
 
 	packetLength := binary.BigEndian.Uint32(buff)
 
-	log.Println(" [debug] packet length ->", packetLength)
 	packet := make([]byte, packetLength)
 	read, err := io.ReadFull(conn, packet)
 	if err != nil {

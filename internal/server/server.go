@@ -12,7 +12,7 @@ import (
 )
 
 const serverAddr = ":4000"
-const serverId = 0
+// const serverId = 0
 
 var ErrMalformedMessage = errors.New("Message is invalid")
 var ErrContactUser = errors.New("Could not contact user")
