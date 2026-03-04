@@ -132,12 +132,11 @@ func authClient(id int32) bool {
 func extractPacket(conn net.Conn) ([]byte, error) {
 	log.Println("extracting packet")
 	buff := make([]byte, headerLength)
-	n, err := io.ReadFull(conn, buff)
+	_, err := io.ReadFull(conn, buff)
 	if err != nil {
 		return []byte{}, fmt.Errorf("couldn't read from conn: %w", err)
 	}
 
-	log.Println(" [debug] header read -> ", n)
 	packetLength := binary.BigEndian.Uint32(buff)
 
 	log.Println(" [debug] packet length ->", packetLength)
