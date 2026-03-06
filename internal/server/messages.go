@@ -8,7 +8,7 @@ import (
 
 func createPaintMessage(id connId) *pb.PaintMessage {
 	// should just get a list of all
-	// connected users, possibly provided from?
+	// connected users, possibly provided from the manager
 	activeUsers := []*pb.User{
 		{Username: "gopls"},
 		{Username: "are_you_ladies_man_217?"},

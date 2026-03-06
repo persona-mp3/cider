@@ -239,7 +239,7 @@ func (x *ChatMessage) GetContent() string {
 type User struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
-	Id            int32                  `protobuf:"varint,2,opt,name=Id,proto3" json:"Id,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -281,11 +281,11 @@ func (x *User) GetUsername() string {
 	return ""
 }
 
-func (x *User) GetId() int32 {
+func (x *User) GetId() string {
 	if x != nil {
 		return x.Id
 	}
-	return 0
+	return ""
 }
 
 // we're using one-time id because when a client
@@ -567,7 +567,7 @@ const file_api_proto_rawDesc = "" +
 	"\acontent\x18\x01 \x01(\tR\acontent\"2\n" +
 	"\x04User\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x0e\n" +
-	"\x02Id\x18\x02 \x01(\x05R\x02Id\"g\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"g\n" +
 	"\fPaintMessage\x12\x1e\n" +
 	"\vone_time_id\x18\x01 \x01(\tR\toneTimeId\x127\n" +
 	"\x0fconnected_users\x18\x02 \x03(\v2\x0e.protocol.UserR\x0econnectedUsers\"5\n" +
