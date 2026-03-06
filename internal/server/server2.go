@@ -27,23 +27,6 @@ var (
 type userId int
 type connId string
 
-// var activeConnections = make(map[userId]net.Conn)
-
-/*
-So how do we want to store connected users?
-If we have each user stored as
-'username' -> net.Conn | thats good
-'uuid' -> net.Conn, userName
-Now that will require the clients to know who these people
-are, and their actual uuid, which is bad? I imagine you
-could packet sniff this and know who it's getting to
-but tahts the same as using the 'username', but we can
-have two clients w the same name, which would corrupt everything
-
-type uuID string
-connections = make(map[uuID]net.Conn)
-*/
-
 func RunServer(mgr *manager) error {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
 	if err != nil {
