@@ -5,21 +5,11 @@ import (
 	pb "github.com/persona-mp3/protocols/gen"
 )
 
-// Converts extractedPacketData to a pb.Packet defined
-// according to spec
-//
-//	func parsePacketData(data []byte) (*pb.Packet, error) {
-//		msg := &pb.Packet{}
-//		if err := proto.Unmarshal(data, msg); err != nil {
-//			return nil, fmt.Errorf("could not parse data packet %w", err)
-//		}
-//		return msg, nil
-//	}
-func createPaintPacket(dest int32) ([]byte, error) {
-	msg := createPaintMessage()
+func createPaintPacket(stubDest connId, id connId) ([]byte, error) {
+	msg := createPaintMessage(id)
 	packet := pb.Packet{
-		From: serverId,
-		Dest: dest,
+		From: string(id),
+		Dest: string(stubDest),
 		Payload: &pb.Packet_Paint{
 			Paint: msg,
 		},
@@ -32,11 +22,11 @@ func createPaintPacket(dest int32) ([]byte, error) {
 	return wirePacket, nil
 }
 
-func createAuthStatusWirePacket(dest int32, code int32, content string) ([]byte, error) {
+func createAuthStatusWirePacket(stubDest connId, code int32, content string) ([]byte, error) {
 	payload := createAuthSuccessMessage(code, content)
 	packet := &pb.Packet{
-		From: serverId,
-		Dest: dest,
+		From: "server",
+		Dest: string(stubDest),
 		Payload: &pb.Packet_AuthSuccess{
 			AuthSuccess: payload,
 		},

@@ -60,3 +60,52 @@ Packet {
 		...some other credentials
 	}
 }
+
+
+
+===================
+Friday 6th March
+===================
+Now we've agreed on a simple handshake
+where the client sends an auth packet upon 
+first connection. 
+[] TODO set deadlines between io/network operations
+
+
+=============
+		SCOPE 
+=============
+	So let's see our scope for today...
+	We want the client to send a newGame Message as:
+		ng user-name
+
+	And then the server can parse this message and 
+	confirm the reciepient honours this request.
+	For now, that impl should not be a priory but it
+	shoudl have a stub in the code just to understand the flow
+
+
+	And then we create a session for both of them where they we
+	can add some game logic
+
+=============================
+* HIGHLEVEL SERVER IMPL
+=============================
+	When a user sends a NG packet, the server 
+	should create a 'session' and notifies the 
+	recipeient in the NG Packet that a GAME is 
+	about to start. 
+
+
+* Questions
+1. Should we make the client automatically just send GamePackets 
+   after a new game session has started? Instead of parsing every 
+	 input and deciphering what kind of Packet is should send? 
+	 And if so, we'd have to deal with 'state' again. Like 'currentState'?
+	 Since the client doesn't use a ton of resources and is simple 
+	 and straight forward compared to the server.
+	 --- Scenario Analysis:
+				If a new NewGamePacket was recieved from the server, we automatically 
+				send GamePackets till the user quits or when the server decides to 
+				end the game.
+

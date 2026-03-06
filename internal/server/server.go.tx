@@ -25,10 +25,6 @@ var NotFoundResponse = Message{
 
 var connectedUsers = make(map[int]net.Conn)
 
-type client struct {
-	id   int
-	conn net.Conn
-}
 
 func Start(mgr *manager) error {
 	listener, err := net.Listen("tcp", serverAddr)

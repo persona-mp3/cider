@@ -5,10 +5,10 @@ import "google/protobuf/timestamp.proto";
 option go_package = "gen/";
 
 message Packet {
-  int32 From = 1;
-  int32 Dest = 2;
+  string from = 1;
+  string  dest = 2;
 
-  oneof Payload {
+  oneof payload {
     PaintMessage paint = 3;
     ChatMessage chat = 4;
     GameMessage game = 5;

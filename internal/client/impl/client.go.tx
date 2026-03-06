@@ -1,0 +1,40 @@
+package impl
+
+import (
+	"fmt"
+	"log/slog"
+	"net"
+
+	pack "github.com/persona-mp3/internal/packet"
+	pb "github.com/persona-mp3/protocols/gen"
+)
+
+func DialServer2(port int, creds AuthCredentials) (net.Conn, error) {
+	addr := fmt.Sprintf("localhost:%d", port)
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		return nil, fmt.Errorf("could not dial server %w", err)
+	}
+
+	slog.Info("successfully connected to server at", "addr", addr)
+	defer conn.Close()
+	// ctx, cancel := context.WithCancel(context.Background())
+	// defer cancel()
+
+	if !authServer(conn, creds) {
+		return nil, fmt.Errorf("Failed authentication")
+	}
+
+	// packetCh := fromServer(ctx, conn)
+	// stdin := fromStdin(ctx)
+	// for {
+	// 	select {
+	// 	case packet := <-packetCh:
+	// 		fmt.Println(" *notification")
+	// 		handleResponse(packet)
+	// 	case val := <-stdin:
+	// 		parseStdinVal(val)
+	// 	}
+	// }
+	return conn, nil
+}

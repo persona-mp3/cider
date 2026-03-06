@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
-	"math/rand"
+	"net"
 
 	"github.com/jackc/pgx/v5"
+	pb "github.com/persona-mp3/protocols/gen"
 )
+
+type client struct {
+	connId string
+	conn   net.Conn
+}
 
 type GameSession struct {
 	id      int
@@ -16,62 +22,64 @@ type GameSession struct {
 }
 
 type manager struct {
-	register      chan client
-	remove        chan int
-	deliver       chan Message
-	sessions      map[int]*GameSession
-	serverDeliver chan Message
-	dbconn        *pgx.Conn
-	query         chan Query
+	connections map[connId]net.Conn
+	register    chan client
+	remove      chan connId
+	deliver     chan *pb.Packet
+	sessions    map[int]*GameSession
+	dbconn      *pgx.Conn
+	query       chan Query
 }
 
 func NewManager(dbConn *pgx.Conn) *manager {
 	return &manager{
-		register: make(chan client),
-		remove:   make(chan int),
-		deliver:  make(chan Message, 10),
-		sessions: make(map[int]*GameSession),
-		query:    make(chan Query),
-		dbconn:   dbConn,
+		connections: make(map[connId]net.Conn),
+		register:    make(chan client),
+		remove:      make(chan connId),
+		deliver:     make(chan *pb.Packet, 10),
+		sessions:    make(map[int]*GameSession),
+		query:       make(chan Query),
+		dbconn:      dbConn,
 	}
 }
 
 func (m *manager) Listen(ctx context.Context) {
-	parentCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	// parentCtx, cancel := context.WithCancel(ctx)
+	// defer cancel()
 
-	play := make(chan Message, 2)
+	// play := make(chan Message, 2)
 	for {
 		select {
 		case client := <-m.register:
-			slog.Info("adding new client", "", client.id)
-			connectedUsers[client.id] = client.conn
+			slog.Info("adding new client", "", client.connId)
+			m.connections[connId(client.connId)] = client.conn
 		case id := <-m.remove:
 			slog.Info("removing client with id:", "", id)
-			delete(connectedUsers, id)
+			delete(m.connections, id)
 		case msg := <-m.deliver:
+			slog.Info("new message to deliver", "msg", fmt.Sprintf("%+v\n", msg))
 
-			switch msg.MessageType {
-			case NewGameMessage:
-				log.Println("create new game")
-				ssid := m.createGameSession(msg.From, msg.Dest)
-				if ssid < 0 {
-					log.Println("sssid got violated??")
-					continue
-				}
-				go m.startGame(parentCtx, ssid, play)
-			case GameMessage:
-				log.Println("game message")
-				play <- msg
-				sendMessage(m, msg)
-				// so if the game message is here
-				// can we pipe into the the startGameFunc?
-			case ChatMessage:
-				log.Println("normal message")
-				sendMessage(m, msg)
-			default:
-				log.Println("unsupported message perhaps?", msg)
-			}
+			// switch msg.MessageType {
+			// case NewGameMessage:
+			// 	log.Println("create new game")
+			// 	ssid := m.createGameSession(msg.From, msg.Dest)
+			// 	if ssid < 0 {
+			// 		log.Println("sssid got violated??")
+			// 		continue
+			// 	}
+			// 	go m.startGame(parentCtx, ssid, play)
+			// case GameMessage:
+			// 	log.Println("game message")
+			// 	play <- msg
+			// 	sendMessage(m, msg)
+			// 	// so if the game message is here
+			// 	// can we pipe into the the startGameFunc?
+			// case ChatMessage:
+			// 	log.Println("normal message")
+			// 	sendMessage(m, msg)
+			// default:
+			// 	log.Println("unsupported message perhaps?", msg)
+			// }
 
 		case q := <-m.query:
 			// returns result to caller via channel
@@ -100,7 +108,8 @@ func (mgr *manager) executeQuery(ctx context.Context, q Query) {
 	q.result <- rows
 }
 
-func (mgr *manager) startGame(ctx context.Context, ssid int, play chan Message) {
+// DEPRECATED
+func (mgr *manager) startGame(ctx context.Context, ssid int, play chan any) {
 	log.Println(" [debug] starting game")
 	session, ok := mgr.sessions[ssid]
 	if !ok {
@@ -147,51 +156,54 @@ func (mgr *manager) startGame(ctx context.Context, ssid int, play chan Message) 
 
 }
 
-func (mgr *manager) createGameSession(from int, dest int) int {
-	homeConn, found := connectedUsers[from]
-	if !found {
-		slog.Info("home-conn is possibly unregistered, and not found", "", "")
-	}
-
-	if homeConn == nil {
-		slog.Info("home-conn is nil", "", homeConn)
-		return -1
-	}
-	awayConn, destfound := connectedUsers[dest]
-	if !destfound {
-		slog.Info("away-conn is possibly unregistered, and not found", "", "")
-	}
-
-	if awayConn == nil {
-		slog.Info("away-conn is nil", "", homeConn)
-		return -1
-	}
-
-	sessionId := rand.Intn(8200)
-	mgr.sessions[sessionId] = &GameSession{
-		id: sessionId,
-		players: [2]client{
-			{id: from, conn: homeConn},
-			{id: dest, conn: awayConn},
-		},
-	}
-
-	log.Println("[debug] created game session succesfully")
-	welcomeMsg := `
-	The game is about to be start...
-	Buckle up brochachos
-	`
-
-	// conn1, conn2 := session.players[0], session.players[1]
-	msg := Message{
-		From:        serverId,
-		MessageType: ChatMessage,
-		Content:     fmt.Sprintf("%s;ssid%d", welcomeMsg, sessionId),
-		Dest:        from,
-	}
-
-	mgr.deliver <- msg
-	msg.Dest = dest
-	mgr.deliver <- msg
-	return sessionId
-}
+// DEPRECRATED
+// func (mgr *manager) createGameSession(from int, dest int) int {
+// 	homeConn, found := connectedUsers[from]
+// 	if !found {
+// 		slog.Info("home-conn is possibly unregistered, and not found", "", "")
+// 	}
+//
+// 	if homeConn == nil {
+// 		slog.Info("home-conn is nil", "", homeConn)
+// 		return -1
+// 	}
+// 	awayConn, destfound := connectedUsers[dest]
+// 	if !destfound {
+// 		slog.Info("away-conn is possibly unregistered, and not found", "", "")
+// 	}
+//
+// 	if awayConn == nil {
+// 		slog.Info("away-conn is nil", "", homeConn)
+// 		return -1
+// 	}
+//
+// 	// sessionId := rand.Intn(8200)
+// 	// mgr.sessions[sessionId] = &GameSession{
+// 	// 	id: sessionId,
+// 	// 	players: [2]client{
+// 	// 		{connId: from, conn: homeConn},
+// 	// 		{connId: dest, conn: awayConn},
+// 	// 	},
+// 	// }
+//
+// 	log.Println("[debug] created game session succesfully")
+// 	welcomeMsg := `
+// 	The game is about to be start...
+// 	Buckle up brochachos
+// 	`
+// 	_ = welcomeMsg
+//
+// 	// conn1, conn2 := session.players[0], session.players[1]
+// 	msg := Message{
+// 		From:        serverId,
+// 		MessageType: ChatMessage,
+// 		// Content:     fmt.Sprintf("%s;ssid%d", welcomeMsg, sessionId),
+// 		Dest: from,
+// 	}
+//
+// 	mgr.deliver <- msg
+// 	msg.Dest = dest
+// 	mgr.deliver <- msg
+// 	// return sessionId
+// 	return -1
+// }

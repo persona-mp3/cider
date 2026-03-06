@@ -24,8 +24,8 @@ const (
 
 type Packet struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	From  int32                  `protobuf:"varint,1,opt,name=From,proto3" json:"From,omitempty"`
-	Dest  int32                  `protobuf:"varint,2,opt,name=Dest,proto3" json:"Dest,omitempty"`
+	From  string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	Dest  string                 `protobuf:"bytes,2,opt,name=dest,proto3" json:"dest,omitempty"`
 	// Types that are valid to be assigned to Payload:
 	//
 	//	*Packet_Paint
@@ -34,7 +34,7 @@ type Packet struct {
 	//	*Packet_NewGame
 	//	*Packet_Auth
 	//	*Packet_AuthSuccess
-	Payload       isPacket_Payload       `protobuf_oneof:"Payload"`
+	Payload       isPacket_Payload       `protobuf_oneof:"payload"`
 	LastUpdated   *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=last_updated,json=lastUpdated,proto3" json:"last_updated,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -70,18 +70,18 @@ func (*Packet) Descriptor() ([]byte, []int) {
 	return file_api_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Packet) GetFrom() int32 {
+func (x *Packet) GetFrom() string {
 	if x != nil {
 		return x.From
 	}
-	return 0
+	return ""
 }
 
-func (x *Packet) GetDest() int32 {
+func (x *Packet) GetDest() string {
 	if x != nil {
 		return x.Dest
 	}
-	return 0
+	return ""
 }
 
 func (x *Packet) GetPayload() isPacket_Payload {
@@ -553,8 +553,8 @@ const file_api_proto_rawDesc = "" +
 	"\n" +
 	"\tapi.proto\x12\bprotocol\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa4\x03\n" +
 	"\x06Packet\x12\x12\n" +
-	"\x04From\x18\x01 \x01(\x05R\x04From\x12\x12\n" +
-	"\x04Dest\x18\x02 \x01(\x05R\x04Dest\x12.\n" +
+	"\x04from\x18\x01 \x01(\tR\x04from\x12\x12\n" +
+	"\x04dest\x18\x02 \x01(\tR\x04dest\x12.\n" +
 	"\x05paint\x18\x03 \x01(\v2\x16.protocol.PaintMessageH\x00R\x05paint\x12+\n" +
 	"\x04chat\x18\x04 \x01(\v2\x15.protocol.ChatMessageH\x00R\x04chat\x12+\n" +
 	"\x04game\x18\x05 \x01(\v2\x15.protocol.GameMessageH\x00R\x04game\x125\n" +
@@ -562,7 +562,7 @@ const file_api_proto_rawDesc = "" +
 	"\x04auth\x18\a \x01(\v2\x15.protocol.AuthMessageH\x00R\x04auth\x12:\n" +
 	"\fauth_success\x18\b \x01(\v2\x15.protocol.AuthSuccessH\x00R\vauthSuccess\x12=\n" +
 	"\flast_updated\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vlastUpdatedB\t\n" +
-	"\aPayload\"'\n" +
+	"\apayload\"'\n" +
 	"\vChatMessage\x12\x18\n" +
 	"\acontent\x18\x01 \x01(\tR\acontent\"2\n" +
 	"\x04User\x12\x1a\n" +

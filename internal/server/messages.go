@@ -3,11 +3,10 @@ package server
 import (
 	"log"
 
-	"github.com/google/uuid"
 	pb "github.com/persona-mp3/protocols/gen"
 )
 
-func createPaintMessage() *pb.PaintMessage {
+func createPaintMessage(id connId) *pb.PaintMessage {
 	// should just get a list of all
 	// connected users, possibly provided from?
 	activeUsers := []*pb.User{
@@ -18,7 +17,7 @@ func createPaintMessage() *pb.PaintMessage {
 
 	paintMsg := pb.PaintMessage{
 		ConnectedUsers: activeUsers,
-		OneTimeId:      uuid.New().String(),
+		OneTimeId:      string(id),
 	}
 	log.Println(" [debug] created id for user")
 	return &paintMsg

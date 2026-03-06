@@ -4,13 +4,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
-	pack "github.com/persona-mp3/internal/packet"
-	pb "github.com/persona-mp3/protocols/gen"
 	"io"
 	"log"
 	"log/slog"
 	"net"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	pack "github.com/persona-mp3/internal/packet"
+	pb "github.com/persona-mp3/protocols/gen"
 )
 
 const (
@@ -25,8 +27,24 @@ var (
 )
 
 type userId int
+type connId string
 
 var activeConnections = make(map[userId]net.Conn)
+
+/*
+So how do we want to store connected users?
+If we have each user stored as
+'username' -> net.Conn | thats good
+'uuid' -> net.Conn, userName
+Now that will require the clients to know who these people
+are, and their actual uuid, which is bad? I imagine you
+could packet sniff this and know who it's getting to
+but tahts the same as using the 'username', but we can
+have two clients w the same name, which would corrupt everything
+
+type uuID string
+connections = make(map[uuID]net.Conn)
+*/
 
 func RunServer(mgr *manager) error {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", serverPort))
@@ -91,7 +109,7 @@ func authenticateClient(mgr *manager, conn net.Conn) bool {
 	return true
 }
 
-const stub = 9999
+const stub = connId("999")
 
 func handleConnection(mgr *manager, conn net.Conn) {
 	defer conn.Close()
@@ -120,7 +138,7 @@ func handleConnection(mgr *manager, conn net.Conn) {
 		return
 	}
 
-	paintPacket, err := createPaintPacket(stub)
+	paintPacket, err := createPaintPacket(stub, newConnId())
 	if err != nil {
 		slog.Error("error", "err", err)
 	}
@@ -204,4 +222,8 @@ func extractPacket(conn net.Conn) ([]byte, error) {
 		)
 	}
 	return packet, nil
+}
+
+func newConnId() connId {
+	return connId(uuid.NewString())
 }
