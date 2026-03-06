@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	pb "github.com/persona-mp3/protocols/gen"
-	// pack "github.com/persona-mp3/internal/packet"
 )
 
 const (
@@ -41,13 +40,19 @@ func DialServer(port int, creds AuthCredentials) {
 
 	packetCh := fromServer(ctx, conn)
 	stdin := fromStdin(ctx)
+	writer := toServer(ctx, conn)
 	for {
 		select {
 		case packet := <-packetCh:
 			fmt.Println(" *notification")
 			handleResponse(packet)
 		case val := <-stdin:
-			parseStdinVal(val)
+			packet := parseStdinVal(val)
+			if packet == nil {
+				continue
+			}
+
+			writer <- packet
 		}
 	}
 }
@@ -91,7 +96,7 @@ func parseStdinVal(input string) *pb.Packet {
 	}
 
 	_, recipient, found := strings.Cut(msgType, " ")
-	if !found {
+	if !found || len(strings.ReplaceAll(recipient, " ", "")) == 0 {
 		fmt.Println(" [info] can't parse message no recipient")
 		return nil
 	}
@@ -99,7 +104,12 @@ func parseStdinVal(input string) *pb.Packet {
 	switch {
 	case strings.Contains(msgType, NewGame):
 		fmt.Println(" [debug] new game type")
-		return createNewGameMessage(recipient, msg)
+		packet, err := createNewGameMessage(recipient, msg)
+		if err != nil {
+			slog.Error("error", "reason", err)
+			return nil
+		}
+		return packet
 	default:
 		fmt.Println(" [debug] normal chat msg")
 	}
@@ -107,10 +117,17 @@ func parseStdinVal(input string) *pb.Packet {
 	return nil
 }
 
-func createNewGameMessage(recipient, message string) *pb.Packet {
+func createNewGameMessage(recipient, message string) (*pb.Packet, error) {
 	slog.Info("[debug] creating new message packet", "to", recipient, "msg", message)
-	// msg := &pb.NewGameMessage{
-	// 	From: 99999, // we'll be changing this field to strings instead, we just let them
-	// }
-	return nil
+	p := &pb.Packet{
+		From: "this-clients-uuid-or-name",
+		Dest: recipient, // "this clients-uuid",
+		Payload: &pb.Packet_NewGame{
+			NewGame: &pb.NewGameMessage{
+				From: "this-clients-uuid-or-name",
+				Dest: recipient, // "this clients-uuid",
+			},
+		},
+	}
+	return p, nil
 }

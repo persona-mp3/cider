@@ -47,8 +47,8 @@ message GameMessage {
 }
 
 message NewGameMessage {
-  int32 from  = 1;
-  int32 dest = 2;
+  string from  = 1;
+  string dest = 2;
 }
 
 message AuthMessage {

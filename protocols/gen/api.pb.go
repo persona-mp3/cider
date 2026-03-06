@@ -401,8 +401,8 @@ func (x *GameMessage) GetPlay() string {
 
 type NewGameMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	From          int32                  `protobuf:"varint,1,opt,name=from,proto3" json:"from,omitempty"`
-	Dest          int32                  `protobuf:"varint,2,opt,name=dest,proto3" json:"dest,omitempty"`
+	From          string                 `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	Dest          string                 `protobuf:"bytes,2,opt,name=dest,proto3" json:"dest,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -437,18 +437,18 @@ func (*NewGameMessage) Descriptor() ([]byte, []int) {
 	return file_api_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *NewGameMessage) GetFrom() int32 {
+func (x *NewGameMessage) GetFrom() string {
 	if x != nil {
 		return x.From
 	}
-	return 0
+	return ""
 }
 
-func (x *NewGameMessage) GetDest() int32 {
+func (x *NewGameMessage) GetDest() string {
 	if x != nil {
 		return x.Dest
 	}
-	return 0
+	return ""
 }
 
 type AuthMessage struct {
@@ -575,8 +575,8 @@ const file_api_proto_rawDesc = "" +
 	"\x04ssid\x18\x01 \x01(\tR\x04ssid\x12\x12\n" +
 	"\x04play\x18\x02 \x01(\tR\x04play\"8\n" +
 	"\x0eNewGameMessage\x12\x12\n" +
-	"\x04from\x18\x01 \x01(\x05R\x04from\x12\x12\n" +
-	"\x04dest\x18\x02 \x01(\x05R\x04dest\")\n" +
+	"\x04from\x18\x01 \x01(\tR\x04from\x12\x12\n" +
+	"\x04dest\x18\x02 \x01(\tR\x04dest\")\n" +
 	"\vAuthMessage\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\";\n" +
 	"\vAuthSuccess\x12\x12\n" +
