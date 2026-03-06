@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"net"
 	"io"
-	"log"
 	"log/slog"
 	"fmt"
 	pb "github.com/persona-mp3/protocols/gen"
@@ -34,7 +33,6 @@ func ParseWirePacket(data []byte) (*pb.Packet, error) {
 
 // The errors returned are all io errors on the socket
 func ReadWirePacket(conn net.Conn, headerLength int) ([]byte, error) {
-	log.Println("[debug] extracting packet")
 	buff := make([]byte, headerLength)
 	_, err := io.ReadFull(conn, buff)
 	if err != nil {

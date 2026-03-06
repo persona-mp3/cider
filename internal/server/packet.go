@@ -25,14 +25,14 @@ func createPaintPacket(dest int32) ([]byte, error) {
 		},
 	}
 
-	wirePacket, err := pack.MarshallPacket(&packet, headerLength)
+	wirePacket, err := pack.MarshallPacket(&packet, headerSize)
 	if err != nil {
 		return []byte{}, err
 	}
 	return wirePacket, nil
 }
 
-func createAuthSuccessWirePacket(dest int32, code int32, content string) ([]byte, error) {
+func createAuthStatusWirePacket(dest int32, code int32, content string) ([]byte, error) {
 	payload := createAuthSuccessMessage(code, content)
 	packet := &pb.Packet{
 		From: serverId,
@@ -41,7 +41,7 @@ func createAuthSuccessWirePacket(dest int32, code int32, content string) ([]byte
 			AuthSuccess: payload,
 		},
 	}
-	wirePacket, err := pack.MarshallPacket(packet, headerLength)
+	wirePacket, err := pack.MarshallPacket(packet, headerSize)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -54,7 +54,7 @@ func createAuthSuccessWirePacket(dest int32, code int32, content string) ([]byte
 // 		return []byte{}, fmt.Errorf("could not marshall packet: %w , %+v", err, packet)
 // 	}
 //
-// 	header := make([]byte, headerLength)
+// 	header := make([]byte, headerSize)
 // 	binary.BigEndian.PutUint32(header, uint32(len(data)))
 //
 // 	wirePacket := append(header, data...)

@@ -168,6 +168,7 @@ func authServer(conn net.Conn, creds AuthCredentials) bool {
 			slog.Int("code", int(auth.AuthSuccess.Code)),
 			slog.String("Content", auth.AuthSuccess.Content),
 		)
+		return false
 	}
 	return true
 }

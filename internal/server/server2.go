@@ -96,10 +96,20 @@ const stub = 9999
 func handleConnection(mgr *manager, conn net.Conn) {
 	defer conn.Close()
 	if !authenticateClient(mgr, conn) {
+		content, err := createAuthStatusWirePacket(stub, 400, "unidentified user")
+		if err != nil {
+			slog.Error("while creating auth success packet", "err", err)
+			return
+		}
+
+		if _, err := conn.Write(content); err != nil {
+			slog.Error("while sending auth packet", "err", err)
+			return
+		}
 		return
 	}
 	slog.Info("authenticated client successfully!", slog.String("", ""))
-	content, err := createAuthSuccessWirePacket(stub, 201, "")
+	content, err := createAuthStatusWirePacket(stub, 201, "")
 	if err != nil {
 		slog.Error("while creating auth success packet", "err", err)
 		return
