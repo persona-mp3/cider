@@ -16,7 +16,7 @@ import (
 )
 
 func fromServer(ctx context.Context, conn net.Conn) <-chan *pb.Packet {
-	response := make(chan *pb.Packet)
+	response := make(chan *pb.Packet, 16)
 	go func() {
 		defer close(response)
 		for {
@@ -49,7 +49,7 @@ func fromServer(ctx context.Context, conn net.Conn) <-chan *pb.Packet {
 }
 
 func fromStdin(ctx context.Context) <-chan string {
-	stdin := make(chan string)
+	stdin := make(chan string, 16)
 	scanner := bufio.NewScanner(os.Stdin)
 	go func() {
 		defer close(stdin)
@@ -68,7 +68,7 @@ func fromStdin(ctx context.Context) <-chan string {
 }
 
 func toServer(ctx context.Context, conn net.Conn) chan<- *pb.Packet {
-	writer := make(chan *pb.Packet)
+	writer := make(chan *pb.Packet, 16)
 	go func() {
 		// defer close(writer)
 		for {
