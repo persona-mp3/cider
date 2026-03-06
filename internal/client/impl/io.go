@@ -20,30 +20,28 @@ func fromServer(ctx context.Context, conn net.Conn) <-chan *pb.Packet {
 	go func() {
 		defer close(response)
 		for {
+			content, err := pack.ReadWirePacket(conn, headerSize)
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					slog.Error("server has disconnected!", "err", err)
+					return
+				} else {
+					slog.Error("unexpected error", "err", err)
+					return
+				}
+			}
+
+			packet, err := pack.ParseWirePacket(content)
+			if err != nil {
+				slog.Error("error in parsing wire packet", "err", err)
+				continue
+			}
+
 			select {
 			case <-ctx.Done():
 				slog.Info(" ctx called!")
 				return
-
-			default:
-				content, err := pack.ReadWirePacket(conn, headerSize)
-				if err != nil {
-					if errors.Is(err, io.EOF) {
-						slog.Error("server has disconnected!", "err", err)
-						return
-					} else {
-						slog.Error("unexpected error", "err", err)
-						return
-					}
-				}
-
-				packet, err := pack.ParseWirePacket(content)
-				if err != nil {
-					slog.Error("error in parsing wire packet", "err", err)
-					continue
-				}
-
-				response <- packet
+			case response <- packet:
 			}
 		}
 	}()
@@ -72,12 +70,16 @@ func fromStdin(ctx context.Context) <-chan string {
 func toServer(ctx context.Context, conn net.Conn) chan<- *pb.Packet {
 	writer := make(chan *pb.Packet)
 	go func() {
-		defer close(writer)
+		// defer close(writer)
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case packet := <-writer:
+			case packet, ok := <-writer:
+				if !ok {
+					slog.Error("writer channel closed", "isopen", ok)
+					return
+				}
 				content, err := pack.MarshallPacket(packet, headerSize)
 				if err != nil {
 					slog.Error("while marshalling", "err", err)
