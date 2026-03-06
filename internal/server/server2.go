@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -10,7 +9,6 @@ import (
 	"net"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 	pack "github.com/persona-mp3/internal/packet"
 	pb "github.com/persona-mp3/protocols/gen"
 )
@@ -29,7 +27,7 @@ var (
 type userId int
 type connId string
 
-var activeConnections = make(map[userId]net.Conn)
+// var activeConnections = make(map[userId]net.Conn)
 
 /*
 So how do we want to store connected users?
@@ -68,51 +66,11 @@ func RunServer(mgr *manager) error {
 
 const headerSize = 4
 
-func authenticateClient(mgr *manager, conn net.Conn) bool {
-	content, err := pack.ReadWirePacket(conn, headerSize)
-	if err != nil {
-		slog.Error("while trying to authenticate client", "", err)
-		return false
-	}
-
-	packet, err := pack.ParseWirePacket(content)
-	if err != nil {
-		slog.Error("while trying to authenticate client", "err", err)
-		return false
-	}
-
-	auth, ok := packet.Payload.(*pb.Packet_Auth)
-	if !ok {
-		slog.Info("client did not provide an auth packet upon first connection")
-		return false
-	}
-	query := ` select * from users where username=$1 `
-	q := NewQuery(query, []any{auth.Auth.Username})
-	// we actually want this to be blocking because
-	// if we can't auth the client we shouldn't continue
-	mgr.query <- q
-	result := <-q.result
-
-	var id int
-	var username string
-	var email string
-
-	if err := result.Scan(&id, &username, &email); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			slog.Info("database could not find entry for user", slog.String("", auth.Auth.Username))
-			return false
-		}
-		slog.Error("unexpected error", "err", err)
-		return false
-	}
-
-	return true
-}
-
 const stub = connId("999")
 
 func handleConnection(mgr *manager, conn net.Conn) {
 	defer conn.Close()
+	// defer remover()
 	if !authenticateClient(mgr, conn) {
 		content, err := createAuthStatusWirePacket(stub, 400, "unidentified user")
 		if err != nil {
@@ -126,7 +84,7 @@ func handleConnection(mgr *manager, conn net.Conn) {
 		}
 		return
 	}
-	slog.Info("authenticated client successfully!", slog.String("", ""))
+	slog.Info("authenticated client successfully!")
 	content, err := createAuthStatusWirePacket(stub, 201, "")
 	if err != nil {
 		slog.Error("while creating auth success packet", "err", err)
@@ -138,14 +96,20 @@ func handleConnection(mgr *manager, conn net.Conn) {
 		return
 	}
 
-	paintPacket, err := createPaintPacket(stub, newConnId())
+	userId := newConnId()
+	mgr.register <- client{userId, conn}
+
+	paintPacket, err := createPaintPacket(stub, userId)
 	if err != nil {
 		slog.Error("error", "err", err)
-	}
-	if err == nil {
+		mgr.remove <- userId
+		// remover(userId)
+		return
+	} else {
 		_, err := conn.Write(paintPacket)
 		if err != nil {
 			slog.Error("error writing paint message to connection", "err", err)
+			mgr.remove <- userId
 			return
 		}
 	}
@@ -154,16 +118,19 @@ func handleConnection(mgr *manager, conn net.Conn) {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				slog.Error("read error:", "err", err)
-				return
+				// return
 			} else {
 				slog.Error("unexpected error", "err", err)
-				return
+				// return
 			}
+			mgr.remove <- userId
+			return
 		}
 
 		packet, err := pack.ParseWirePacket(content)
 		if err != nil {
 			slog.Error("protobuf error occured", "err", err)
+			mgr.remove <- userId
 			return
 		}
 
@@ -195,33 +162,6 @@ func handleMessage(mgr *manager, msg *pb.Packet) {
 	default:
 		log.Println("should we honour this msg type?")
 	}
-}
-
-// Reads from a connection until a full packet is is gotten
-// It returns errors that include IO operations
-func extractPacket(conn net.Conn) ([]byte, error) {
-	buff := make([]byte, headerSize)
-	_, err := io.ReadFull(conn, buff)
-	if err != nil {
-		return []byte{}, fmt.Errorf("couldn't read from conn: %w", err)
-	}
-
-	packetLength := binary.BigEndian.Uint32(buff)
-
-	packet := make([]byte, packetLength)
-	read, err := io.ReadFull(conn, packet)
-	if err != nil {
-		return []byte{}, fmt.Errorf("couldn't read full packet: %w", err)
-	}
-
-	if read != int(packetLength) {
-		slog.Warn(
-			"expected to read full packet length",
-			"expected", packetLength,
-			"read", read,
-		)
-	}
-	return packet, nil
 }
 
 func newConnId() connId {

@@ -12,7 +12,7 @@ import (
 )
 
 type client struct {
-	connId string
+	userId connId
 	conn   net.Conn
 }
 
@@ -51,11 +51,13 @@ func (m *manager) Listen(ctx context.Context) {
 	for {
 		select {
 		case client := <-m.register:
-			slog.Info("adding new client", "", client.connId)
-			m.connections[connId(client.connId)] = client.conn
+			slog.Info("registering", "client", client.userId)
+			m.connections[client.userId] = client.conn
+
 		case id := <-m.remove:
-			slog.Info("removing client with id:", "", id)
+			slog.Info("removing client", "id", id)
 			delete(m.connections, id)
+
 		case msg := <-m.deliver:
 			slog.Info("new message to deliver", "msg", fmt.Sprintf("%+v\n", msg))
 
@@ -96,14 +98,6 @@ func (m *manager) Listen(ctx context.Context) {
 // parse the struct into, is it better we return
 // the rows to scan for the caller?
 func (mgr *manager) executeQuery(ctx context.Context, q Query) {
-	// yea GO had to fight me w this? why doesnt string
-	// satisfy any??
-
-	// args := make([]any, len(q.params))
-	// for i, v := range q.params {
-	// 	args[i] = v
-	// }
-	// pgxConn.QueryRow(ctx, query, args...)
 	rows := mgr.dbconn.QueryRow(ctx, q.query, q.params...)
 	q.result <- rows
 }

@@ -1,8 +1,13 @@
 package server
 
 import (
+	"encoding/binary"
+	"fmt"
 	pack "github.com/persona-mp3/internal/packet"
 	pb "github.com/persona-mp3/protocols/gen"
+	"io"
+	"log/slog"
+	"net"
 )
 
 func createPaintPacket(stubDest connId, id connId) ([]byte, error) {
@@ -38,15 +43,29 @@ func createAuthStatusWirePacket(stubDest connId, code int32, content string) ([]
 	return wirePacket, nil
 }
 
-// func MarshallPacket(packet *pb.Packet) ([]byte, error) {
-// 	data, err := proto.Marshal(packet)
-// 	if err != nil {
-// 		return []byte{}, fmt.Errorf("could not marshall packet: %w , %+v", err, packet)
-// 	}
-//
-// 	header := make([]byte, headerSize)
-// 	binary.BigEndian.PutUint32(header, uint32(len(data)))
-//
-// 	wirePacket := append(header, data...)
-// 	return wirePacket, nil
-// }
+// Reads from a connection until a full packet is is gotten
+// It returns errors that include IO operations
+func extractPacket(conn net.Conn) ([]byte, error) {
+	buff := make([]byte, headerSize)
+	_, err := io.ReadFull(conn, buff)
+	if err != nil {
+		return []byte{}, fmt.Errorf("couldn't read from conn: %w", err)
+	}
+
+	packetLength := binary.BigEndian.Uint32(buff)
+
+	packet := make([]byte, packetLength)
+	read, err := io.ReadFull(conn, packet)
+	if err != nil {
+		return []byte{}, fmt.Errorf("couldn't read full packet: %w", err)
+	}
+
+	if read != int(packetLength) {
+		slog.Warn(
+			"expected to read full packet length",
+			"expected", packetLength,
+			"read", read,
+		)
+	}
+	return packet, nil
+}
