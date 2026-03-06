@@ -7,14 +7,6 @@ import (
 )
 
 func createPaintMessage(mgr *manager, id connId) *pb.PaintMessage {
-	// should just get a list of all
-	// connected users, possibly provided from the manager
-	// activeUsers := []*pb.User{
-	// 	{Username: "gopls"},
-	// 	{Username: "are_you_ladies_man_217?"},
-	// 	{Username: "a_blow_fish!"},
-	// }
-
 	var connections = make([]*pb.User, len(mgr.connections))
 	for connId, c := range mgr.connections {
 		u := &pb.User{
@@ -23,13 +15,23 @@ func createPaintMessage(mgr *manager, id connId) *pb.PaintMessage {
 		}
 
 		connections = append(connections, u)
+		log.Printf("[debug] user-> %+v\n", c)
+	}
+
+	// incase they're the only user connected
+	if len(connections) == 0 {
+		u := &pb.User{
+			Username: "You",
+			Id:       string(id),
+		}
+		connections = append(connections, u)
 	}
 
 	paintMsg := pb.PaintMessage{
 		ConnectedUsers: connections,
 		OneTimeId:      string(id),
 	}
-	log.Println(" [debug] created id for user")
+
 	return &paintMsg
 }
 

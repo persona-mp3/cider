@@ -100,10 +100,8 @@ func handleConnection(mgr *manager, conn net.Conn) {
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				slog.Error("read error:", "err", err)
-				// return
 			} else {
 				slog.Error("unexpected error", "err", err)
-				// return
 			}
 			mgr.remove <- userId
 			return
@@ -122,8 +120,9 @@ func handleConnection(mgr *manager, conn net.Conn) {
 }
 
 func handleMessage(mgr *manager, msg *pb.Packet) {
-	log.Println("handling packet")
-	log.Printf(" %+v\n", msg)
+	// log.Println("handling packet")
+	// log.Printf(" %+v\n", msg)
+	slog.Info("handling packet", slog.String("packet", fmt.Sprintf("%+v", msg)))
 
 	// we'd have to change the manager a little bit
 	// because it could handle sending normal messages

@@ -12,15 +12,10 @@ import (
 )
 
 type Client struct {
-	userId connId
-	username   string
-	conn   net.Conn
+	userId   connId
+	username string
+	conn     net.Conn
 }
-
-// type GameSession struct {
-// 	id      int
-// 	players [2]client
-// }
 
 type manager struct {
 	connections map[connId]Client
@@ -45,10 +40,6 @@ func NewManager(dbConn *pgx.Conn) *manager {
 }
 
 func (m *manager) Listen(ctx context.Context) {
-	// parentCtx, cancel := context.WithCancel(ctx)
-	// defer cancel()
-
-	// play := make(chan Message, 2)
 	for {
 		select {
 		case client := <-m.register:
