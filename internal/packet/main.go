@@ -10,6 +10,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// see bug_reports/max_payload.md
+const MAX_PAYLOAD = 1024 * 1024
+
 func MarshallPacket(packet *pb.Packet, headerLength int) ([]byte, error) {
 	data, err := proto.Marshal(packet)
 	if err != nil {
@@ -40,6 +43,19 @@ func ReadWirePacket(conn net.Conn, headerLength int) ([]byte, error) {
 	}
 
 	packetLength := binary.BigEndian.Uint32(buff)
+
+	// BUG REPORT -> If you used netcat and sent in any 
+	// randome stream of text, it would get decoded in the 
+	// worst way possible, taking over 1g
+
+	if packetLength >= MAX_PAYLOAD {
+		slog.Warn("client sent over max payload", "size", packetLength)
+		conn.Write([]byte(fmt.Sprintf(` Your address: %s\n You're banned\n`,  conn.RemoteAddr().String())))
+		return []byte{}, fmt.Errorf("Max Payload sent, ban client")
+	}
+
+	
+
 
 	packet := make([]byte, packetLength)
 	read, err := io.ReadFull(conn, packet)

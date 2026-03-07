@@ -21,7 +21,7 @@ type AuthCredentials struct {
 }
 
 func DialServer(port int, creds AuthCredentials) {
-	addr := fmt.Sprintf("localhost:%d", port)
+	addr := fmt.Sprintf("138.68.165.148:%d", port)
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		slog.Error("could not dial server", "err", err)
