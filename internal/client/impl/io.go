@@ -68,33 +68,7 @@ func fromStdin(ctx context.Context) <-chan string {
 	return stdin
 }
 
-//	func toServer(ctx context.Context, conn net.Conn) chan<- *pb.Packet {
-//		writer := make(chan *pb.Packet)
-//		go func() {
-//			for {
-//				select {
-//				case <-ctx.Done():
-//					return
-//				case packet, ok := <-writer:
-//					if !ok {
-//						slog.Error("writer channel closed", "isopen", ok)
-//						return
-//					}
-//					content, err := pack.MarshallPacket(packet, headerSize)
-//					if err != nil {
-//						slog.Error("while marshalling", "err", err)
-//						continue
-//					}
-//
-//					if _, err := conn.Write(content); err != nil {
-//						slog.Error("could not write message to sever", "err", err)
-//						return
-//					}
-//				}
-//			}
-//		}()
-//		return writer
-//	}
+
 func toServer2(ctx context.Context, writerCh <-chan *pb.Packet, conn net.Conn) {
 	go func() {
 		for {

@@ -11,14 +11,13 @@ import (
 
 func main() {
 	var username string
-	flag.StringVar(&username, "u", "", "username to login into server")
+	flag.StringVar(&username, "u", "", "username to get authenticated by server")
 	flag.Parse()
 
 	if len(strings.ReplaceAll(username, " ", "")) == 0 {
 		fmt.Fprint(os.Stderr, "username must not be empty\n")
 		os.Exit(1)
 	}
-
 	impl.DialServer(4000,
 		impl.AuthCredentials{Username: username},
 	)

@@ -20,8 +20,10 @@ type AuthCredentials struct {
 	Username string
 }
 
+// 138.68.165.148
+
 func DialServer(port int, creds AuthCredentials) {
-	addr := fmt.Sprintf("138.68.165.148:%d", port)
+	addr := fmt.Sprintf(":%d", port)
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		slog.Error("could not dial server", "err", err)
@@ -68,6 +70,9 @@ func DialServer(port int, creds AuthCredentials) {
 }
 
 var connId string
+var GameMode = false
+var GameId string
+var PlayedWith string
 
 func handleResponse(p *pb.Packet) {
 	switch p.Payload.(type) {
@@ -76,6 +81,7 @@ func handleResponse(p *pb.Packet) {
 		fmt.Printf("  #%s:  %2s\n", p.From, p.GetChat().Content)
 
 	case *pb.Packet_Game:
+		HandleGamePacket(p)
 		slog.Info("[debug] game packet from server")
 		fmt.Printf("  #%s:   | ssid: %2s | newplay: %2s ", p.From, p.GetGame().Ssid, p.GetGame().GetPlay())
 
@@ -87,7 +93,10 @@ func handleResponse(p *pb.Packet) {
 		slog.Info("[debug] new game response from server")
 		fmt.Printf(`
 		From: %2s  | GameSessionId: %2s  | Info: %2s \n
-		`, payload.From, payload.Ssid, *payload.Info)
+		`, payload.From, payload.Ssid, *payload.Info,
+		)
+		GameMode = true
+		GameId = payload.Ssid
 	}
 }
 
@@ -133,11 +142,13 @@ func getConnId() string {
 	return PaintCredentials.connId
 }
 
-var InGameState bool
-
 // ng  username* newGameMessage
 // username* -> normalMessage
 func parseStdinVal(input string) *pb.Packet {
+	if GameMode {
+		return parseGameMessage(input)
+	}
+
 	msgType, msg, found := strings.Cut(input, "*")
 	if !found {
 		fmt.Println("can't parse message no recipient")

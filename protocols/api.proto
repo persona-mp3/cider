@@ -45,6 +45,7 @@ message PaintMessage {
 message GameMessage {
   string ssid = 1;
   string play = 2;
+  int32 play_in = 3;
 }
 
 message NewGameMessage {
@@ -56,6 +57,7 @@ message NewGameResponse {
   string from = 2;
   bool created = 3;
   optional string info =  4;
+  optional int32 tickerRate = 5;
 }
 
 message AuthMessage {

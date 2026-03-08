@@ -367,6 +367,7 @@ type GameMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ssid          string                 `protobuf:"bytes,1,opt,name=ssid,proto3" json:"ssid,omitempty"`
 	Play          string                 `protobuf:"bytes,2,opt,name=play,proto3" json:"play,omitempty"`
+	PlayIn        int32                  `protobuf:"varint,3,opt,name=play_in,json=playIn,proto3" json:"play_in,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -413,6 +414,13 @@ func (x *GameMessage) GetPlay() string {
 		return x.Play
 	}
 	return ""
+}
+
+func (x *GameMessage) GetPlayIn() int32 {
+	if x != nil {
+		return x.PlayIn
+	}
+	return 0
 }
 
 type NewGameMessage struct {
@@ -473,6 +481,7 @@ type NewGameResponse struct {
 	From          string                 `protobuf:"bytes,2,opt,name=from,proto3" json:"from,omitempty"`
 	Created       bool                   `protobuf:"varint,3,opt,name=created,proto3" json:"created,omitempty"`
 	Info          *string                `protobuf:"bytes,4,opt,name=info,proto3,oneof" json:"info,omitempty"`
+	TickerRate    *int32                 `protobuf:"varint,5,opt,name=tickerRate,proto3,oneof" json:"tickerRate,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -533,6 +542,13 @@ func (x *NewGameResponse) GetInfo() string {
 		return *x.Info
 	}
 	return ""
+}
+
+func (x *NewGameResponse) GetTickerRate() int32 {
+	if x != nil && x.TickerRate != nil {
+		return *x.TickerRate
+	}
+	return 0
 }
 
 type AuthMessage struct {
@@ -657,19 +673,24 @@ const file_api_proto_rawDesc = "" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"g\n" +
 	"\fPaintMessage\x12\x1e\n" +
 	"\vone_time_id\x18\x01 \x01(\tR\toneTimeId\x127\n" +
-	"\x0fconnected_users\x18\x02 \x03(\v2\x0e.protocol.UserR\x0econnectedUsers\"5\n" +
+	"\x0fconnected_users\x18\x02 \x03(\v2\x0e.protocol.UserR\x0econnectedUsers\"N\n" +
 	"\vGameMessage\x12\x12\n" +
 	"\x04ssid\x18\x01 \x01(\tR\x04ssid\x12\x12\n" +
-	"\x04play\x18\x02 \x01(\tR\x04play\"8\n" +
+	"\x04play\x18\x02 \x01(\tR\x04play\x12\x17\n" +
+	"\aplay_in\x18\x03 \x01(\x05R\x06playIn\"8\n" +
 	"\x0eNewGameMessage\x12\x12\n" +
 	"\x04from\x18\x01 \x01(\tR\x04from\x12\x12\n" +
-	"\x04dest\x18\x02 \x01(\tR\x04dest\"u\n" +
+	"\x04dest\x18\x02 \x01(\tR\x04dest\"\xa9\x01\n" +
 	"\x0fNewGameResponse\x12\x12\n" +
 	"\x04ssid\x18\x01 \x01(\tR\x04ssid\x12\x12\n" +
 	"\x04from\x18\x02 \x01(\tR\x04from\x12\x18\n" +
 	"\acreated\x18\x03 \x01(\bR\acreated\x12\x17\n" +
-	"\x04info\x18\x04 \x01(\tH\x00R\x04info\x88\x01\x01B\a\n" +
-	"\x05_info\")\n" +
+	"\x04info\x18\x04 \x01(\tH\x00R\x04info\x88\x01\x01\x12#\n" +
+	"\n" +
+	"tickerRate\x18\x05 \x01(\x05H\x01R\n" +
+	"tickerRate\x88\x01\x01B\a\n" +
+	"\x05_infoB\r\n" +
+	"\v_tickerRate\")\n" +
 	"\vAuthMessage\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\";\n" +
 	"\vAuthSuccess\x12\x12\n" +
