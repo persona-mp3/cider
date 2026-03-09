@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+
 	// "log"
 	"log/slog"
 	"net"
@@ -51,6 +53,8 @@ const stub = connId("999")
 
 func handleConnection(mgr *manager, conn net.Conn) {
 	defer conn.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	username, authStats := authenticateClient(mgr, conn)
 	if !authStats {
 		content, err := createAuthStatusWirePacket(stub, 400, "unidentified user")
@@ -112,12 +116,12 @@ func handleConnection(mgr *manager, conn net.Conn) {
 			return
 		}
 
-		handleMessage(mgr, packet)
+		handleMessage(ctx, mgr, packet)
 	}
 
 }
 
-func handleMessage(mgr *manager, msg *pb.Packet) {
+func handleMessage(ctx context.Context, mgr *manager, msg *pb.Packet) {
 	switch msg.Payload.(type) {
 	case *pb.Packet_Chat:
 		slog.Info("packet is a chat type")
@@ -127,7 +131,7 @@ func handleMessage(mgr *manager, msg *pb.Packet) {
 
 	case *pb.Packet_NewGame:
 		slog.Info("packet is a new game type")
-		CreateGameNewGameSession(mgr, msg.GetNewGame())
+		CreateGameNewGameSession(ctx, mgr, msg.GetNewGame())
 
 	case *pb.Packet_Paint:
 		slog.Info("packet is a paint game type")

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -12,7 +13,7 @@ import (
 var defaultTickerRate = 8
 var defaultDuration = time.Duration(defaultTickerRate) * time.Second
 
-func CreateGameNewGameSession(mgr *manager, req *pb.NewGameMessage) {
+func CreateGameNewGameSession(ctx context.Context, mgr *manager, req *pb.NewGameMessage) {
 	slog.Info("create new game session", "for", req.From, "with", req.Dest)
 	gameSessionId := uuid.NewString()
 	homePlayer, connected := mgr.connections[connId(req.From)]
@@ -37,6 +38,7 @@ func CreateGameNewGameSession(mgr *manager, req *pb.NewGameMessage) {
 			lastPlayerId: string(player2.client.userId),
 			updatedState: "",
 		},
+		interrupt: make(chan any),
 	}
 
 	mgr.GameSessions[gameSessionId] = currSession
@@ -77,12 +79,31 @@ func CreateGameNewGameSession(mgr *manager, req *pb.NewGameMessage) {
 		},
 	}
 
+	go func() {
+		ticker := time.NewTicker(defaultDuration)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				fmt.Println("handling over turn")
+				handOverTurn(currSession)
+				ticker.Reset(defaultDuration)
+			case <-currSession.interrupt:
+				fmt.Println("new game play, refreshing tocker")
+				ticker.Reset(defaultDuration)
+			case <-ctx.Done():
+				slog.Info("ticker-routine returning", "err", ctx.Err().Error())
+				slog.Info("ending game for game session", "ssid", currSession.SessionId)
+				return
+			}
+		}
+	}()
 }
 
 func newPlayer(c *Client) *Player {
 	return &Player{
 		client: c,
-		// Play:   make(chan string),
 	}
 }
 
@@ -98,9 +119,10 @@ func HandleGamePacket(mgr *manager, packet *pb.Packet) {
 		return
 	}
 
-	// so for evrey new play we want to ipdate teh state
+	// so for every new play we want to update the game state
 	isUpdated := session.State.updateState(packet.From, gameMessage)
 	if !isUpdated {
+		session.interrupt <- struct{}{}
 		return
 	}
 
@@ -127,13 +149,6 @@ func HandleGamePacket(mgr *manager, packet *pb.Packet) {
 	slog.Debug("[debug] broadcast updated state to all players")
 }
 
-/*
-So for every play that comes in, we want to do the following:
- 1. Update the game state (includes game logic validation)
- 2. Set a timer-countdown for the next player to play
- 3. If the player doesn't meet the condition, we drop their play and handover to next player
-*/
-
 func (gs *GameState) updateState(playerId string, gm *pb.GameMessage) bool {
 	for i := range 5 {
 		_ = i
@@ -144,23 +159,8 @@ func (gs *GameState) updateState(playerId string, gm *pb.GameMessage) bool {
 		return false
 	}
 
-	deadline := gs.deadline
-	// now we simpluy just don't want to count their
-	// game play just ignore it
 	gs.lastPlayerId = playerId
 	now := time.Now()
-	if now.After(deadline) {
-		gs.deadline = now.Add(defaultDuration)
-		gs.playedAt = now
-		slog.Info("deadline not met, handing over turn")
-		fmt.Printf("lastPlayedAt: %v\n", gs.playedAt)
-		fmt.Printf("deadline set was %v\n", gs.deadline)
-		fmt.Printf("this player played at %v\n", now)
-		fmt.Printf("new deadline: %v\n", gs.deadline)
-
-		return true
-	}
-
 	slog.Info("player played ontime")
 	gs.updatedState += fmt.Sprintf("%s\n", gm.Play)
 	gs.playedAt = now
@@ -170,3 +170,14 @@ func (gs *GameState) updateState(playerId string, gm *pb.GameMessage) bool {
 	return true
 }
 
+func handOverTurn(gs *GameSession) {
+	var nextPlayer string
+	for _, p := range gs.Players {
+		if string(p.client.userId) != gs.State.lastPlayerId {
+			nextPlayer = string(p.client.userId)
+		}
+	}
+
+	gs.State.lastPlayerId = nextPlayer
+	slog.Info("handed over to other player")
+}
