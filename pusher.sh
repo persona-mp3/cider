@@ -1,4 +1,3 @@
 #!/usr/bin/env zsh
-
-git push -u origin refactor && git push -u ddaniel HEAD:main
+git push -u origin main && git push -u ddaniel HEAD:main
 
