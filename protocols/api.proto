@@ -64,7 +64,6 @@ message NewGameResponse {
   // better since the clients are communicate with the server
   // directly instead
   optional int32 tickerRate = 5;
-  // excuse my naming skills
   string rival = 6;
 }
 
