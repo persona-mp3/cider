@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	// "log"
 	"log/slog"
 	"net"
 
@@ -15,7 +15,6 @@ import (
 
 const (
 	serverPort = 4000
-	serverId   = 0
 )
 
 var (
@@ -32,7 +31,7 @@ func RunServer(mgr *manager) error {
 		return fmt.Errorf("could not start tcp server: %w", err)
 	}
 
-	log.Println("tcp server running on port", serverPort)
+	slog.Info("tcp server running on", slog.Any("port", serverPort))
 
 	for {
 		conn, err := ln.Accept()
@@ -66,7 +65,7 @@ func handleConnection(mgr *manager, conn net.Conn) {
 		}
 		return
 	}
-	slog.Info("authenticated client successfully!")
+	slog.Info("authenticated client successfully")
 	content, err := createAuthStatusWirePacket(stub, 201, "")
 	if err != nil {
 		slog.Error("while creating auth success packet", "err", err)
@@ -121,20 +120,20 @@ func handleConnection(mgr *manager, conn net.Conn) {
 func handleMessage(mgr *manager, msg *pb.Packet) {
 	switch msg.Payload.(type) {
 	case *pb.Packet_Chat:
-		log.Println("packet is a chat type")
+		slog.Info("packet is a chat type")
 
 	case *pb.Packet_Game:
 		HandleGamePacket(mgr, msg)
 
 	case *pb.Packet_NewGame:
-		log.Println("packet is a new game type")
+		slog.Info("packet is a new game type")
 		CreateGameNewGameSession(mgr, msg.GetNewGame())
 
 	case *pb.Packet_Paint:
-		log.Println("packet is a paint game type")
+		slog.Info("packet is a paint game type")
 
-		// default:
-		// 	log.Println("should we honour this msg type?")
+	default:
+		slog.Info("unidentified packet provided")
 	}
 }
 

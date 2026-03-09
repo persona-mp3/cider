@@ -2,14 +2,15 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
+	"time"
 
 	"github.com/google/uuid"
 	pb "github.com/persona-mp3/protocols/gen"
 )
 
-var defaultTickerRate int32 = 2
+var defaultTickerRate = 8
+var defaultDuration = time.Duration(defaultTickerRate) * time.Second
 
 func CreateGameNewGameSession(mgr *manager, req *pb.NewGameMessage) {
 	slog.Info("create new game session", "for", req.From, "with", req.Dest)
@@ -31,7 +32,7 @@ func CreateGameNewGameSession(mgr *manager, req *pb.NewGameMessage) {
 	currSession := &GameSession{
 		SessionId: gameSessionId,
 		Players:   []*Player{player1, player2},
-		Rate:      defaultTickerRate,
+		Rate:      int32(defaultTickerRate),
 		State: &GameState{
 			lastPlayerId: string(player2.client.userId),
 			updatedState: "",
@@ -98,7 +99,10 @@ func HandleGamePacket(mgr *manager, packet *pb.Packet) {
 	}
 
 	// so for evrey new play we want to ipdate teh state
-	updateGameState(session.State, packet.From, gameMessage)
+	isUpdated := session.State.updateState(packet.From, gameMessage)
+	if !isUpdated {
+		return
+	}
 
 	for _, player := range session.Players {
 		if packet.From == string(player.client.userId) {
@@ -113,18 +117,56 @@ func HandleGamePacket(mgr *manager, packet *pb.Packet) {
 					// as what the server sends is always the updated game
 					Play:   session.State.updatedState,
 					Ssid:   ssid,
-					PlayIn: defaultTickerRate,
+					PlayIn: int32(defaultTickerRate),
 				},
 			},
 		}
 
 	}
 
-	log.Println("[debug] broadcast updated state to all players")
+	slog.Debug("[debug] broadcast updated state to all players")
 }
 
-func updateGameState(gs *GameState, playerId string, gm *pb.GameMessage) {
+/*
+So for every play that comes in, we want to do the following:
+ 1. Update the game state (includes game logic validation)
+ 2. Set a timer-countdown for the next player to play
+ 3. If the player doesn't meet the condition, we drop their play and handover to next player
+*/
+
+func (gs *GameState) updateState(playerId string, gm *pb.GameMessage) bool {
+	for i := range 5 {
+		_ = i
+		fmt.Println()
+	}
+	if playerId == gs.lastPlayerId {
+		slog.Info("not player turn")
+		return false
+	}
+
+	deadline := gs.deadline
+	// now we simpluy just don't want to count their
+	// game play just ignore it
 	gs.lastPlayerId = playerId
+	now := time.Now()
+	if now.After(deadline) {
+		gs.deadline = now.Add(defaultDuration)
+		gs.playedAt = now
+		slog.Info("deadline not met, handing over turn")
+		fmt.Printf("lastPlayedAt: %v\n", gs.playedAt)
+		fmt.Printf("deadline set was %v\n", gs.deadline)
+		fmt.Printf("this player played at %v\n", now)
+		fmt.Printf("new deadline: %v\n", gs.deadline)
+
+		return true
+	}
+
+	slog.Info("player played ontime")
 	gs.updatedState += fmt.Sprintf("%s\n", gm.Play)
-	log.Println("updated game state")
+	gs.playedAt = now
+	gs.deadline = now.Add(defaultDuration)
+	slog.Info("updated game state successfully")
+	fmt.Printf("new deadline: %v\n", gs.deadline)
+	return true
 }
+

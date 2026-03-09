@@ -2,9 +2,9 @@ package server
 
 import (
 	"context"
-	"log"
 	"log/slog"
 	"net"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	pack "github.com/persona-mp3/internal/packet"
@@ -25,7 +25,9 @@ type GameSession struct {
 
 type GameState struct {
 	lastPlayerId string
+	playedAt     time.Time
 	updatedState string
+	deadline  time.Time
 }
 
 type Client struct {
@@ -111,5 +113,4 @@ func (mgr *manager) deliverMessage(p *pb.Packet) {
 	}
 
 	slog.Info("successfully delivered message")
-	log.Printf("\n\n  delivered message: %+v\n  to %s\n", p, p.Dest)
 }

@@ -9,8 +9,10 @@ to render full windows instead of terminals.
 
 ### Progress
  - Server and Client initial connection [x]
- - Pairing different clients together []
+ - Pairing different clients together [x]
+    * Clients can pick who they want to play with aslong they're online
  - Game state []
+    * Structure is defined
 
 
 ### Run Program
