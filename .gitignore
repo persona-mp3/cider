@@ -1,3 +1,5 @@
 _env
 __pycache___
 leftof
+server.crt
+server.key
