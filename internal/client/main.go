@@ -28,10 +28,5 @@ func main() {
 		Username: username,
 	}
 
-	// if secure {
-	// 	impl.DialWithTLS(at, authCreds)
-	// }
-	// impl.DialServer(4000, authCreds)
-
 	impl.MainDialer(at, creds, secure)
 }
