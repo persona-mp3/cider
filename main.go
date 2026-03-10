@@ -90,13 +90,14 @@ func main() {
 	go manager.Listen(ctx)
 
 	if secure {
-		log.Printf("[WARN] running server without TLS, connections are open!! \n\n")
-		if err := server.RunServer(manager, serverPort); err != nil {
+
+		log.Printf("[INFO] Running server over tls\n\n")
+		if err := server.RunTLSServer(manager, serverPort); err != nil {
 			log.Fatal(err)
 		}
 	} else {
-		log.Printf("[INFO] you choose run server with tls\n\n")
-		if err := server.RunTLSServer(manager, serverPort); err != nil {
+		log.Printf("[WARN] running server without TLS, connections are open!! \n\n")
+		if err := server.RunServer(manager, serverPort); err != nil {
 			log.Fatal(err)
 		}
 	}
