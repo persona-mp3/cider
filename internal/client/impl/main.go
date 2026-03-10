@@ -1,10 +1,8 @@
 package impl
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
-	"net"
 	"strings"
 
 	pb "github.com/persona-mp3/protocols/gen"
@@ -20,52 +18,52 @@ type AuthCredentials struct {
 	Username string
 }
 
-func DialServer(port int, creds AuthCredentials) {
-	addr := fmt.Sprintf(":%d", port)
-	conn, err := net.Dial("tcp", addr)
-	if err != nil {
-		slog.Error("could not dial server", "err", err)
-		return
-	}
+// func DialServer(ipAddr string, creds AuthCredentials) {
+// 	// addr := fmt.Sprintf(":%d", port)
+// 	// conn, err := net.Dial("tcp", ipAddr)
+// 	// if err != nil {
+// 	// 	slog.Error("could not dial server", "err", err)
+// 	// 	return
+// 	// }
 
-	slog.Info("successfully connected to server at", "addr", addr)
-	defer conn.Close()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+// 	slog.Info("successfully connected to server at", "addr", ipAddr)
+// 	defer conn.Close()
+// 	ctx, cancel := context.WithCancel(context.Background())
+// 	defer cancel()
 
-	if !authServer(conn, creds) {
-		slog.Info("exiting application because server refused to authenticate", slog.Bool("auth", false))
-		return
-	}
+// 	if !authServer(conn, creds) {
+// 		slog.Info("exiting application because server refused to authenticate", slog.Bool("auth", false))
+// 		return
+// 	}
 
-	serverCh := fromServer(ctx, conn)
-	stdin := fromStdin(ctx)
-	writerCh := make(chan *pb.Packet)
-	defer close(writerCh)
-	toServer2(ctx, writerCh, conn)
-	for {
-		select {
-		case packet, open := <-serverCh:
-			if !open {
-				slog.Info("server channel has been closed")
-				return
-			}
-			fmt.Println(" *notification")
-			handleResponse(packet)
-		case val, open := <-stdin:
-			if !open {
-				slog.Info("stdin channel has been closed")
-				return
-			}
-			packet := parseStdinVal(val)
-			if packet == nil {
-				continue
-			}
-			writerCh <- packet
+// 	serverCh := fromServer(ctx, conn)
+// 	stdin := fromStdin(ctx)
+// 	writerCh := make(chan *pb.Packet)
+// 	defer close(writerCh)
+// 	toServer2(ctx, writerCh, conn)
+// 	for {
+// 		select {
+// 		case packet, open := <-serverCh:
+// 			if !open {
+// 				slog.Info("server channel has been closed")
+// 				return
+// 			}
+// 			fmt.Println(" *notification")
+// 			handleResponse(packet)
+// 		case val, open := <-stdin:
+// 			if !open {
+// 				slog.Info("stdin channel has been closed")
+// 				return
+// 			}
+// 			packet := parseStdinVal(val)
+// 			if packet == nil {
+// 				continue
+// 			}
+// 			writerCh <- packet
 
-		}
-	}
-}
+// 		}
+// 	}
+// }
 
 // var connId string
 var GameMode = false

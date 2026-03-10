@@ -14,9 +14,6 @@ import (
 	pb "github.com/persona-mp3/protocols/gen"
 )
 
-// const (
-// 	serverPort = 4000
-// )
 
 var (
 	ErrMalformedPacket     = errors.New("Malformed Packet sent")
@@ -53,6 +50,7 @@ const stub = connId("999")
 func handleConnection(mgr *manager, conn net.Conn) {
 	defer conn.Close()
 	ctx, cancel := context.WithCancel(context.Background())
+	// isnt't tls supposed to run before here
 	defer cancel()
 	username, authStats := authenticateClient(mgr, conn)
 	if !authStats {

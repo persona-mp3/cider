@@ -11,14 +11,27 @@ import (
 
 func main() {
 	var username string
+	var secure bool
+	var at string
+	flag.BoolVar(&secure, "secure", false, "Communicate with server tls")
 	flag.StringVar(&username, "u", "", "username to get authenticated by server")
+	// for dev purposes, we should stick to IP address
+	// but later on, the default will be cidervine.com
+	flag.StringVar(&at, "at", "localhost:4000", "Address of the server, IP.ADDRESS")
 	flag.Parse()
 
 	if len(strings.ReplaceAll(username, " ", "")) == 0 {
 		fmt.Fprint(os.Stderr, "username must not be empty\n")
 		os.Exit(1)
 	}
-	impl.DialServer(4000,
-		impl.AuthCredentials{Username: username},
-	)
+	creds := impl.AuthCredentials{
+		Username: username,
+	}
+
+	// if secure {
+	// 	impl.DialWithTLS(at, authCreds)
+	// }
+	// impl.DialServer(4000, authCreds)
+
+	impl.MainDialer(at, creds, secure)
 }
