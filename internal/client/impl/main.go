@@ -18,54 +18,7 @@ type AuthCredentials struct {
 	Username string
 }
 
-// func DialServer(ipAddr string, creds AuthCredentials) {
-// 	// addr := fmt.Sprintf(":%d", port)
-// 	// conn, err := net.Dial("tcp", ipAddr)
-// 	// if err != nil {
-// 	// 	slog.Error("could not dial server", "err", err)
-// 	// 	return
-// 	// }
 
-// 	slog.Info("successfully connected to server at", "addr", ipAddr)
-// 	defer conn.Close()
-// 	ctx, cancel := context.WithCancel(context.Background())
-// 	defer cancel()
-
-// 	if !authServer(conn, creds) {
-// 		slog.Info("exiting application because server refused to authenticate", slog.Bool("auth", false))
-// 		return
-// 	}
-
-// 	serverCh := fromServer(ctx, conn)
-// 	stdin := fromStdin(ctx)
-// 	writerCh := make(chan *pb.Packet)
-// 	defer close(writerCh)
-// 	toServer2(ctx, writerCh, conn)
-// 	for {
-// 		select {
-// 		case packet, open := <-serverCh:
-// 			if !open {
-// 				slog.Info("server channel has been closed")
-// 				return
-// 			}
-// 			fmt.Println(" *notification")
-// 			handleResponse(packet)
-// 		case val, open := <-stdin:
-// 			if !open {
-// 				slog.Info("stdin channel has been closed")
-// 				return
-// 			}
-// 			packet := parseStdinVal(val)
-// 			if packet == nil {
-// 				continue
-// 			}
-// 			writerCh <- packet
-
-// 		}
-// 	}
-// }
-
-// var connId string
 var GameMode = false
 var GameId string
 var GameRival string
@@ -83,10 +36,6 @@ func handleResponse(p *pb.Packet) {
 
 	case *pb.Packet_NewGameRes:
 		payload := p.GetNewGameRes()
-		// fmt.Printf(`
-		// From: %2s  | GameSessionId: %2s  | Info: %2s \n
-		// `, payload.From, payload.Ssid, *payload.Info,
-		// )
 		GameMode = true
 		GameId = payload.Ssid
 		GameRival = payload.Rival

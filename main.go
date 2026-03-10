@@ -66,10 +66,10 @@ func defaultSetUp() *db.DBConfig {
 func main() {
 	var serverPort int
 	var mode bool
-	var open bool
+	var secure bool
 	flag.IntVar(&serverPort, "port", 4900, "Port to run server on, by defaut runs on 4900")
 	flag.BoolVar(&mode, "mode", false, "Run the application in dev or prod, default is dev. Specific variables in .env file in root")
-	flag.BoolVar(&open, "open", true, "To run the server using TLS or no encryption algorithm")
+	flag.BoolVar(&secure, "secure", false, "To run the server using TLS or no encryption algorithm")
 	flag.Parse()
 
 	var dbConfig *db.DBConfig
@@ -89,7 +89,7 @@ func main() {
 
 	go manager.Listen(ctx)
 
-	if open {
+	if secure {
 		log.Printf("[WARN] running server without TLS, connections are open!! \n\n")
 		if err := server.RunServer(manager, serverPort); err != nil {
 			log.Fatal(err)
