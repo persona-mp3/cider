@@ -52,7 +52,7 @@ func NewManager(dbConn *pgx.Conn) *manager {
 		register:     make(chan Client),
 		remove:       make(chan connId),
 		deliver:      make(chan *pb.Packet, 10),
-		query:        make(chan Query),
+		query:        make(chan Query, 10),
 		dbconn:       dbConn,
 		GameSessions: make(map[string]*GameSession),
 	}
