@@ -11,6 +11,12 @@ import (
 	pb "github.com/persona-mp3/protocols/gen"
 )
 
+type connID string
+type Client struct {
+	connID
+	username string
+	conn     net.Conn
+}
 type Player struct {
 	client *Client
 }
@@ -30,7 +36,7 @@ type GameState struct {
 	deadline     time.Time
 }
 
-type Client struct {
+type Cli struct {
 	userId   connId
 	username string
 	conn     net.Conn
@@ -62,8 +68,8 @@ func (m *manager) Listen(ctx context.Context) {
 	for {
 		select {
 		case client := <-m.register:
-			slog.Info("registering", "client", client.userId)
-			m.connections[client.userId] = client
+			slog.Info("registering", "client", client.connID)
+			m.connections[connId(client.connID)] = client
 
 		case id := <-m.remove:
 			slog.Info("removing client", "id", id)
