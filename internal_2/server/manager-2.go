@@ -29,8 +29,7 @@ type GameManager struct {
 	NewSessionCh chan *GameSession
 	Game         chan GamePacket
 	// Only recieves and written to from the mainManger
-	// to d players, or end sessions
-	// or for the gameManager to send messages a client
+	// to d players, or end sessions or for the gameManager to send messages a client
 	privateCh chan string
 	outbound  chan *Command
 }
@@ -40,12 +39,12 @@ type Manager struct {
 	register    chan *Client
 	remove      chan connID
 	deliver     chan *pb.Packet
-	dbconn      *pgx.Conn
+	dbconn      *pgx.Conn // TODO should be a connection pool instead
 	query       chan Query
 	game        chan GamePacket
-	context     context.Context
-	inbound     chan *Command
-	GameManager
+	// context     context.Context
+	inbound chan *Command
+	*GameManager
 }
 
 func NewGameManager() *GameManager {
@@ -58,10 +57,24 @@ func NewGameManager() *GameManager {
 	}
 }
 
+func NewManager(dbConn *pgx.Conn, gm *GameManager) *Manager {
+	return &Manager{
+		connections: make(map[connID]*Client),
+		register:    make(chan *Client),
+		remove:      make(chan connID),
+		dbconn:      dbConn,
+		query:       make(chan Query),
+		game:        make(chan GamePacket),
+		inbound:     make(chan *Command),
+		GameManager: gm,
+	}
+}
+
 func (m *Manager) Listen(ctx context.Context) {
 	childContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 	m.GameManager.Listen(childContext)
+	infoLogger.Println("main manager listening...")
 	for {
 		select {
 		case client := <-m.register:
@@ -86,8 +99,8 @@ func (m *Manager) Listen(ctx context.Context) {
 	}
 }
 
-// Snaphost returns all actively connected users 
-// that the manager currently has. This can be used 
+// Snaphost returns all actively connected users
+// that the manager currently has. This can be used
 // primarily as the Paint message to send to new clients
 // and subsequently to update all connected users about active
 // and inactive users
