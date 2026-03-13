@@ -46,7 +46,7 @@ const (
 	ServerId               = "0"
 	UnidentifiedUser       = "Unidentified User"
 	Unauthorised     int32 = 401
-	AuthSuccessful   int32 = 200
+	AuthSuccessful   int32 = 201
 )
 
 func handleConnection(mgr *Manager, conn net.Conn) {

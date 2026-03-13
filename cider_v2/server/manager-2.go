@@ -100,7 +100,6 @@ func (m *Manager) Listen(ctx context.Context) {
 
 		case q := <-m.query:
 			infoLogger.Printf("new query response: %s\n", q.Query)
-			time.Sleep(5 * time.Second)
 			go m.executeQuery(q)
 
 		case <-ctx.Done():
