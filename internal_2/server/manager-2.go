@@ -47,6 +47,19 @@ type Manager struct {
 	*GameManager
 }
 
+func NewManager(dbConn *pgx.Conn, gm *GameManager) *Manager {
+	return &Manager{
+		connections: make(map[connID]*Client),
+		register:    make(chan *Client, 70),
+		remove:      make(chan connID, 70),
+		dbconn:      dbConn, // TODO change to connnetion pool instead
+		query:       make(chan Query, 70),
+		game:        make(chan GamePacket, 70),
+		inbound:     make(chan *Command, 70),
+		GameManager: gm,
+	}
+}
+
 func NewGameManager() *GameManager {
 	return &GameManager{
 		currentPlayers: make(map[string]string),
@@ -54,19 +67,6 @@ func NewGameManager() *GameManager {
 		NewSessionCh:   make(chan *GameSession, 60),
 		Game:           make(chan GamePacket, 60),
 		privateCh:      make(chan string, 60),
-	}
-}
-
-func NewManager(dbConn *pgx.Conn, gm *GameManager) *Manager {
-	return &Manager{
-		connections: make(map[connID]*Client),
-		register:    make(chan *Client),
-		remove:      make(chan connID),
-		dbconn:      dbConn,
-		query:       make(chan Query),
-		game:        make(chan GamePacket),
-		inbound:     make(chan *Command),
-		GameManager: gm,
 	}
 }
 
