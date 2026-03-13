@@ -19,7 +19,6 @@ func createAuthPacket(dest, msg string, code int32) ([]byte, error) {
 		msg = defaultContent
 	}
 
-	// return &pb.AuthSuccess{Code: code, Content: content}
 	packet := &pb.Packet{
 		From: ServerId,
 		Dest: dest,

@@ -22,9 +22,3 @@ func handleUnidentifiedPacket(mgr *Manager, msg *pb.Packet) {
 	infoLogger.Printf("handling unidentified packet: %+v\n", msg)
 }
 
-// type routerFunc func(mgr *Manager, packet pb.Packet)
-// type router interface {
-// 	routerFunc
-// }
-//
-

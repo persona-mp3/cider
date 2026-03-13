@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	framer "github.com/persona-mp3/internal/packet"
 	pb "github.com/persona-mp3/protocols/gen"
 )
 
@@ -35,6 +37,7 @@ type GameManager struct {
 }
 
 type Manager struct {
+	mu          sync.RWMutex
 	connections map[connID]*Client
 	register    chan *Client
 	remove      chan connID
@@ -71,25 +74,37 @@ func NewGameManager() *GameManager {
 	}
 }
 
+var writeDeadline = time.Now().Add(4 * time.Second)
+
 func (m *Manager) Listen(ctx context.Context) {
 	childContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go m.GameManager.Listen(childContext)
+
+	timeoutCtx, cancelOperation := context.WithDeadline(ctx, writeDeadline)
+	defer cancelOperation()
+	deadline, _ := timeoutCtx.Deadline()
+
 	infoLogger.Println("main manager listening...")
 	for {
 		select {
 		case client := <-m.register:
+			m.mu.Lock()
 			infoLogger.Printf("registering client: %s\n", client.connID)
+			client.conn.SetWriteDeadline(deadline)
 			m.connections[client.connID] = client
 			m.GameManager.privateCh <- string(client.connID)
+			m.mu.Unlock()
 
 		case packet := <-m.deliver:
 			infoLogger.Printf("delivering message %+v\n", packet)
-			m.sendPacket(packet)
+			go m.sendPacket(packet)
 
 		case id := <-m.remove:
+			m.mu.Lock()
 			infoLogger.Printf("removing client: %s\n", id)
 			delete(m.connections, id)
+			m.mu.Unlock()
 
 		case game := <-m.game:
 			infoLogger.Printf("new game-play: %s\n", game)
@@ -116,6 +131,8 @@ func (m *Manager) Listen(ctx context.Context) {
 // and inactive users
 // It returns the uuid of each player mapped to their username
 func (mgr *Manager) Snapshot() map[string]string {
+	mgr.mu.RLock()
+	defer mgr.mu.RUnlock()
 	snapshot := make(map[string]string)
 	for connId, client := range mgr.connections {
 		snapshot[string(connId)] = client.username
@@ -124,7 +141,27 @@ func (mgr *Manager) Snapshot() map[string]string {
 }
 
 func (mgr *Manager) sendPacket(packet *pb.Packet) {
+	mgr.mu.RLock()
+	defer mgr.mu.RUnlock()
+
 	infoLogger.Println("sending packet...")
+	out, err := framer.MarshallPacket(packet, headerSize)
+	if err != nil {
+		errLogger.Printf("could not marhsall packet: %s\n", err)
+		return
+	}
+
+	destID := packet.Dest
+	client, found := mgr.connections[connID(destID)]
+	if !found {
+		errLogger.Printf("could not find dest: %s\n", destID)
+		return
+	}
+
+	if _, err := client.conn.Write(out); err != nil {
+		errLogger.Printf("could not write to client: %s\n", err)
+		mgr.remove <- connID(destID)
+	}
 }
 
 func (gm *GameManager) Listen(ctx context.Context) {
