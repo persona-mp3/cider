@@ -27,7 +27,7 @@ type GameManager struct {
 	Sessions map[string]*GameSession
 
 	NewSessionCh chan *GameSession
-	Game         chan GamePacket
+	Game         chan *GamePacket // TODO change to protobuf spec
 	// Only recieves and written to from the mainManger
 	// to d players, or end sessions or for the gameManager to send messages a client
 	privateCh chan string
@@ -41,7 +41,7 @@ type Manager struct {
 	deliver     chan *pb.Packet
 	dbconn      *pgx.Conn // TODO should be a connection pool instead
 	query       chan Query
-	game        chan GamePacket
+	game        chan *GamePacket
 	// context     context.Context
 	inbound chan *Command
 	*GameManager
@@ -54,7 +54,7 @@ func NewManager(dbConn *pgx.Conn, gm *GameManager) *Manager {
 		remove:      make(chan connID, 70),
 		dbconn:      dbConn, // TODO change to connnetion pool instead
 		query:       make(chan Query, 70),
-		game:        make(chan GamePacket, 70),
+		game:        make(chan *GamePacket, 70),
 		inbound:     make(chan *Command, 70),
 		GameManager: gm,
 	}
@@ -65,7 +65,8 @@ func NewGameManager() *GameManager {
 		currentPlayers: make(map[string]string),
 		Sessions:       make(map[string]*GameSession),
 		NewSessionCh:   make(chan *GameSession, 60),
-		Game:           make(chan GamePacket, 60),
+		Game:           make(chan *GamePacket, 60),
+		outbound:       make(chan *Command),
 		privateCh:      make(chan string, 60),
 	}
 }
@@ -81,6 +82,10 @@ func (m *Manager) Listen(ctx context.Context) {
 			log.Printf("registering client: %s\n", client.connID)
 			m.connections[client.connID] = client
 			m.GameManager.privateCh <- string(client.connID)
+
+		case packet := <-m.deliver:
+			log.Printf("delivering message %+v\n", packet)
+			m.sendPacket(packet)
 
 		case id := <-m.remove:
 			log.Printf("removing client: %s\n", id)
@@ -113,25 +118,32 @@ func (mgr *Manager) Snapshot() map[string]string {
 	return snapshot
 }
 
+func (mgr *Manager) sendPacket(packet *pb.Packet) {
+	log.Println("sending packet...")
+}
+
 func (gm *GameManager) Listen(ctx context.Context) {
 	for {
 		select {
 		case newPlay := <-gm.Game:
 			log.Printf("new game packet %s\n", newPlay)
 			gm.processPlay(newPlay)
+
 		case newSession := <-gm.NewSessionCh:
 			gm.newGameSession(newSession)
+
 		case dropPlayer := <-gm.privateCh:
 			log.Printf("droping player %s mid game, \n", dropPlayer)
 			delete(gm.currentPlayers, dropPlayer)
 			gm.interruptGame(dropPlayer)
+
 		case <-ctx.Done():
 			log.Printf("main manager canceled, reason: %s\n", ctx.Err())
 		}
 	}
 }
 
-func (gm *GameManager) processPlay(play GamePacket) {
+func (gm *GameManager) processPlay(play *GamePacket) {
 	session, found := gm.Sessions[play.ssid]
 	if !found {
 		log.Printf("play packet has an invalid ssid, session not found\n")
