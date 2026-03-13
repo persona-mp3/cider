@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"net"
 
 	"github.com/jackc/pgx/v5"
@@ -14,9 +15,10 @@ type Command struct {
 type connID string
 
 type Query struct {
-	query  string
-	params []any
-	result chan pgx.Row
+	Query   string
+	Params  []any
+	Result  chan pgx.Row
+	ctx     context.Context
 }
 
 type Client struct {

@@ -74,31 +74,37 @@ func NewGameManager() *GameManager {
 func (m *Manager) Listen(ctx context.Context) {
 	childContext, cancel := context.WithCancel(ctx)
 	defer cancel()
-	m.GameManager.Listen(childContext)
+	go m.GameManager.Listen(childContext)
 	infoLogger.Println("main manager listening...")
 	for {
 		select {
 		case client := <-m.register:
-			log.Printf("registering client: %s\n", client.connID)
+			infoLogger.Printf("registering client: %s\n", client.connID)
 			m.connections[client.connID] = client
 			m.GameManager.privateCh <- string(client.connID)
 
 		case packet := <-m.deliver:
-			log.Printf("delivering message %+v\n", packet)
+			infoLogger.Printf("delivering message %+v\n", packet)
 			m.sendPacket(packet)
 
 		case id := <-m.remove:
-			log.Printf("removing client: %s\n", id)
+			infoLogger.Printf("removing client: %s\n", id)
 			delete(m.connections, id)
 
 		case game := <-m.game:
-			log.Printf("new game-play: %s\n", game)
+			infoLogger.Printf("new game-play: %s\n", game)
 			m.GameManager.Game <- game
 
 		case cmd := <-m.inbound:
-			log.Printf("received new cmd from node: %s, to run %v\n", cmd.Id, cmd.packet)
+			infoLogger.Printf("received new cmd from node: %s, to run %v\n", cmd.Id, cmd.packet)
+
+		case q := <-m.query:
+			infoLogger.Printf("new query response: %s\n", q.Query)
+			time.Sleep(5 * time.Second)
+			go m.executeQuery(q)
+
 		case <-ctx.Done():
-			log.Printf("context called: %s\n", ctx.Err())
+			infoLogger.Printf("context called: %s\n", ctx.Err())
 			return
 		}
 	}
@@ -119,26 +125,27 @@ func (mgr *Manager) Snapshot() map[string]string {
 }
 
 func (mgr *Manager) sendPacket(packet *pb.Packet) {
-	log.Println("sending packet...")
+	infoLogger.Println("sending packet...")
 }
 
 func (gm *GameManager) Listen(ctx context.Context) {
+	infoLogger.Println("game manager listening...")
 	for {
 		select {
 		case newPlay := <-gm.Game:
-			log.Printf("new game packet %s\n", newPlay)
+			infoLogger.Printf("new game packet %s\n", newPlay)
 			gm.processPlay(newPlay)
 
 		case newSession := <-gm.NewSessionCh:
 			gm.newGameSession(newSession)
 
 		case dropPlayer := <-gm.privateCh:
-			log.Printf("droping player %s mid game, \n", dropPlayer)
+			infoLogger.Printf("droping player %s mid game, \n", dropPlayer)
 			delete(gm.currentPlayers, dropPlayer)
 			gm.interruptGame(dropPlayer)
 
 		case <-ctx.Done():
-			log.Printf("main manager canceled, reason: %s\n", ctx.Err())
+			errLogger.Printf("main manager canceled, reason: %s\n", ctx.Err())
 		}
 	}
 }
@@ -146,12 +153,12 @@ func (gm *GameManager) Listen(ctx context.Context) {
 func (gm *GameManager) processPlay(play *GamePacket) {
 	session, found := gm.Sessions[play.ssid]
 	if !found {
-		log.Printf("play packet has an invalid ssid, session not found\n")
+		infoLogger.Printf("play packet has an invalid ssid, session not found\n")
 		return
 	}
 
 	if session.State.lastPlayerId == play.playerId {
-		log.Printf("dropping %s play's, not their turn\n", play.playerId)
+		infoLogger.Printf("dropping %s play's, not their turn\n", play.playerId)
 		return
 	}
 
@@ -165,7 +172,7 @@ func (gm *GameManager) newGameSession(gs *GameSession) {
 	for _, player := range gs.Players {
 		activeSession, found := gm.currentPlayers[string(player.connID)]
 		if found {
-			log.Printf("could not create new game session for %s,  already exists in %s\n", player.connID, activeSession)
+			infoLogger.Printf("could not create new game session for %s,  already exists in %s\n", player.connID, activeSession)
 			gs.created <- false
 			return
 		}
@@ -179,7 +186,7 @@ func (gm *GameManager) newGameSession(gs *GameSession) {
 func (gm *GameManager) interruptGame(playerId string) {
 	sessionId, found := gm.currentPlayers[playerId]
 	if !found {
-		log.Printf("could not find the game player %s was in\n", playerId)
+		infoLogger.Printf("could not find the game player %s was in\n", playerId)
 		return
 	}
 
@@ -187,16 +194,16 @@ func (gm *GameManager) interruptGame(playerId string) {
 
 	gameSession, found := gm.Sessions[sessionId]
 	if !found && gameSession == nil {
-		log.Printf("[WARN] could not find game session with existing ssid %s!\n", sessionId)
+		errLogger.Printf("could not find game session with existing ssid %s!\n", sessionId)
 		return
 	}
 
 	if gameSession == nil {
-		log.Printf("[WARN] game session found is nil")
+		warnLogger.Printf("game session found is nil")
 		return
 	}
 
 	gm.outbound <- &Command{Id: "game_manager"}
 	gameSession.gameState <- Terminate
-	log.Printf("successfully sent terminate cmd to game session\n")
+	infoLogger.Printf("successfully sent terminate cmd to game session\n")
 }

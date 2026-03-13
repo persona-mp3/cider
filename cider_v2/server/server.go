@@ -18,25 +18,25 @@ var (
 	ErrMalformedPacket     = errors.New("Malformed Packet sent")
 	ErrUserNotFound        = errors.New("Could not contact user")
 	ErrInternalServerError = errors.New("Internal server error, please wait")
-	infoLogger             = log.New(os.Stdout, "[INFO]", log.Llongfile)
-	warnLogger             = log.New(os.Stdout, "[WARN]", log.Llongfile)
-	errLogger              = log.New(os.Stdout, "[ERR]", log.Llongfile)
+	infoLogger             = log.New(os.Stdout, "[INFO] ", log.Lshortfile)
+	warnLogger             = log.New(os.Stdout, "[WARN] ", log.Lshortfile)
+	errLogger              = log.New(os.Stdout, "[ERROR] ", log.Lshortfile)
 )
 
-// var infoLogger = log.New(os.Stdout, "[INFO]", log.Llongfile)
-// var warnLogger = log.New(os.Stdout, "[WARN]", log.Llongfile)
-// var errLogger = log.New(os.Stdout, "[ERR]", log.Llongfile)
 func StartServer(addr string, mgr *Manager) error {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("could not start server: %w", err)
 	}
+	infoLogger.Println("tcp server listening on", addr)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			errLogger.Printf("could not accept client connection: %s\n", err)
 			continue
 		}
+
+		infoLogger.Printf("accepted client: %s\n", conn.RemoteAddr().String())
 
 		go handleConnection(mgr, conn)
 	}
@@ -54,30 +54,30 @@ func handleConnection(mgr *Manager, conn net.Conn) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	_username, isAuth := authClient(mgr, conn)
+	_username, isAuth := authClient(ctx, mgr, conn)
 	if !isAuth {
 		infoLogger.Printf("could not authenticate connection\n")
 
 		content, err := createAuthPacket("", UnidentifiedUser, Unauthorised)
 		if err != nil {
-			log.Printf("error while creating authPacket %s\n", err)
+			errLogger.Printf("error while creating authPacket %s\n", err)
 			return
 		}
 
 		if _, err := conn.Write(content); err != nil {
-			log.Printf("could not write to connection for failed auth %s\n", err)
+			errLogger.Printf("could not write to connection for failed auth %s\n", err)
 		}
 		return
 	}
 
 	content, err := createAuthPacket("", "", AuthSuccessful)
 	if err != nil {
-		log.Printf("error while creating authPacket %s\n", err)
+		errLogger.Printf("error while creating authPacket %s\n", err)
 		return
 	}
 
 	if _, err := conn.Write(content); err != nil {
-		log.Printf("could not write to connection for successful auth %s\n", err)
+		errLogger.Printf("could not write to connection for successful auth %s\n", err)
 		return
 	}
 
@@ -94,7 +94,7 @@ func handleConnection(mgr *Manager, conn net.Conn) {
 	// we can now start reading and routing messages
 	for {
 		content, err := framer.ReadWirePacket(conn, headerSize)
-		if err != nil && errors.Is(err, io.EOF) {
+		if err != nil {
 			if errors.Is(err, io.EOF) {
 				errLogger.Printf("client disconnected %s\n", err)
 			} else {

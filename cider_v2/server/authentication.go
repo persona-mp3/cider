@@ -1,25 +1,28 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	pack "github.com/persona-mp3/internal/packet"
 	pb "github.com/persona-mp3/protocols/gen"
 )
 
-func authClient(mgr *Manager, conn net.Conn) (string, bool) {
+func authClient(ctx context.Context, mgr *Manager, conn net.Conn) (string, bool) {
+	infoLogger.Println("authenticating client...")
 	content, err := pack.ReadWirePacket(conn, headerSize)
 	if err != nil {
-		slog.Error("while trying to authenticate client", "", err)
+		errLogger.Printf("while trying to authenticate client: %s\n", err)
 		return "", false
 	}
 
 	packet, err := pack.ParseWirePacket(content)
 	if err != nil {
-		slog.Error("while trying to authenticate client", "err", err)
+		errLogger.Printf("while trying to authenticate client: %s\n", err)
 		return "", false
 	}
 
@@ -32,8 +35,11 @@ func authClient(mgr *Manager, conn net.Conn) (string, bool) {
 	q := NewQuery(query, []any{auth.Auth.Username})
 	// we actually want this to be blocking because
 	// if we can't auth the client we shouldn't continue
+	timeout, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	q.ctx = timeout
 	mgr.query <- q
-	result := <-q.result
+	result := <-q.Result
 
 	var id int
 	var username string
@@ -41,12 +47,15 @@ func authClient(mgr *Manager, conn net.Conn) (string, bool) {
 
 	if err := result.Scan(&id, &username, &email); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			slog.Info("database could not find entry for user", slog.String("", auth.Auth.Username))
-			return "", false
+			infoLogger.Printf("database could not find entry for user %s\n", auth.Auth.Username)
+		} else if errors.Is(err, timeout.Err()) {
+			errLogger.Printf("database could not respond ontime: %s\n", err)
+		} else {
+			errLogger.Printf("unexpected error %s\n", err)
 		}
-		slog.Error("unexpected error", "err", err)
 		return "", false
 	}
 
+	infoLogger.Printf("authentication for client %s was successful\n", conn.RemoteAddr().String())
 	return auth.Auth.Username, true
 }
