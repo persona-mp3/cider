@@ -19,13 +19,30 @@ type GameState struct {
 	deadline     time.Time
 }
 
+type GameCommand int
+
+const (
+	TerminateGame GameCommand = iota
+)
+
+type GameSession struct {
+	SessionId string
+	Players   []connID
+	Rate      int32
+	State     *GameState
+	interrupt chan any
+	created   chan bool
+	// gameState chan gameState
+	cmd       chan GameCommand
+}
+
 type GameManager struct {
 	// currentPlayers maps each userId to a gameSession
 	// this is to easily map look up players and in which game they belong to
 	// for dropping them if mid game
 	currentPlayers map[string]string
 
-	// Sessions maps each game's session to SSID
+	// Sessions maps each game's sessionID to their session
 	Sessions map[string]*GameSession
 
 	NewSessionCh chan *GameSession
@@ -45,8 +62,7 @@ type Manager struct {
 	dbconn      *pgx.Conn // TODO should be a connection pool instead
 	query       chan Query
 	game        chan *GamePacket
-	// context     context.Context
-	inbound chan *Command
+	inbound     chan *Command
 	*GameManager
 }
 
@@ -74,16 +90,12 @@ func NewGameManager() *GameManager {
 	}
 }
 
-var writeDeadline = time.Now().Add(4 * time.Second)
+const WriteTimeout = 4
 
 func (m *Manager) Listen(ctx context.Context) {
 	childContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go m.GameManager.Listen(childContext)
-
-	timeoutCtx, cancelOperation := context.WithDeadline(ctx, writeDeadline)
-	defer cancelOperation()
-	deadline, _ := timeoutCtx.Deadline()
 
 	infoLogger.Println("main manager listening...")
 	for {
@@ -91,7 +103,7 @@ func (m *Manager) Listen(ctx context.Context) {
 		case client := <-m.register:
 			m.mu.Lock()
 			infoLogger.Printf("registering client: %s\n", client.connID)
-			client.conn.SetWriteDeadline(deadline)
+			client.conn.SetWriteDeadline(time.Now().Add(WriteTimeout * time.Second))
 			m.connections[client.connID] = client
 			m.GameManager.privateCh <- string(client.connID)
 			m.mu.Unlock()
@@ -142,7 +154,6 @@ func (mgr *Manager) Snapshot() map[string]string {
 
 func (mgr *Manager) sendPacket(packet *pb.Packet) {
 	mgr.mu.RLock()
-	defer mgr.mu.RUnlock()
 
 	infoLogger.Println("sending packet...")
 	out, err := framer.MarshallPacket(packet, headerSize)
@@ -158,6 +169,7 @@ func (mgr *Manager) sendPacket(packet *pb.Packet) {
 		return
 	}
 
+	defer mgr.mu.RUnlock()
 	if _, err := client.conn.Write(out); err != nil {
 		errLogger.Printf("could not write to client: %s\n", err)
 		mgr.remove <- connID(destID)
@@ -176,12 +188,12 @@ func (gm *GameManager) Listen(ctx context.Context) {
 			gm.newGameSession(newSession)
 
 		case dropPlayer := <-gm.privateCh:
-			infoLogger.Printf("droping player %s mid game, \n", dropPlayer)
+			infoLogger.Printf("dropping player %s mid game, \n", dropPlayer)
 			delete(gm.currentPlayers, dropPlayer)
 			gm.interruptGame(dropPlayer)
 
 		case <-ctx.Done():
-			errLogger.Printf("main manager canceled, reason: %s\n", ctx.Err())
+			errLogger.Printf("main manager cancelled, reason: %s\n", ctx.Err())
 		}
 	}
 }
@@ -206,9 +218,9 @@ func (gm *GameManager) processPlay(play *GamePacket) {
 func (gm *GameManager) newGameSession(gs *GameSession) {
 	// check if these palyers are already in a game
 	for _, player := range gs.Players {
-		activeSession, found := gm.currentPlayers[string(player.connID)]
+		activeSession, found := gm.currentPlayers[player.String()]
 		if found {
-			infoLogger.Printf("could not create new game session for %s,  already exists in %s\n", player.connID, activeSession)
+			infoLogger.Printf("could not create new game session for %s,  already exists in %s\n", player.String(), activeSession)
 			gs.created <- false
 			return
 		}

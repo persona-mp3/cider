@@ -15,10 +15,10 @@ type Command struct {
 type connID string
 
 type Query struct {
-	Query   string
-	Params  []any
-	Result  chan pgx.Row
-	ctx     context.Context
+	Query  string
+	Params []any
+	Result chan pgx.Row
+	ctx    context.Context
 }
 
 type Client struct {
@@ -33,15 +33,6 @@ const (
 	Terminate gameState = iota
 )
 
-type GameSession struct {
-	SessionId string
-	Players   []*Client
-	Rate      int32
-	State     *GameState
-	interrupt chan any
-	created   chan bool
-	gameState chan gameState
-}
 
 type GamePacket struct {
 	ssid string
@@ -49,4 +40,8 @@ type GamePacket struct {
 	// could type as connId for readability but idk if
 	// the indirection is truly worth it
 	playerId string
+}
+
+func (c connID) String() string {
+	return string(c)
 }
