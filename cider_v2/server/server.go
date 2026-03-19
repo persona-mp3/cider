@@ -152,7 +152,7 @@ func routePacket(ctx context.Context, mgr *Manager, packet *pb.Packet) {
 
 	case *pb.Packet_NewGame:
 		infoLogger.Println("new game packet received")
-		handleNewGameMessage(ctx, mgr, packet)
+		handleNewGameMessage(mgr, packet)
 
 	case *pb.Packet_Paint:
 		infoLogger.Println("new paint packet received")
@@ -163,17 +163,17 @@ func routePacket(ctx context.Context, mgr *Manager, packet *pb.Packet) {
 	}
 }
 
-func handleNewGameMessage(ctx context.Context, mgr *Manager, msg *pb.Packet) {
+func handleNewGameMessage(mgr *Manager, msg *pb.Packet) {
 	infoLogger.Printf("handling new game msg: %+v\n", msg)
-	createNewGameSession(ctx, mgr, msg)
+	createNewGameSession(mgr, msg)
 }
 
-func createNewGameSession(context context.Context, mgr *Manager, packet *pb.Packet) {
+func createNewGameSession(mgr *Manager, packet *pb.Packet) {
 	activeUsers := mgr.Snapshot()
 	// check if the recipient is active
 	destUsername, found := activeUsers[packet.GetNewGame().Dest]
 	if !found {
-		infoLogger.Printf("%s requested a game challenge with %s, but %s isn't couldn't be found\n", packet.From, packet.Dest)
+		infoLogger.Printf("%s requested a game challenge with %s, but %s isn't couldn't be found\n", packet.From, packet.Dest, packet.Dest)
 		return
 	}
 
@@ -200,9 +200,10 @@ func createNewGameSession(context context.Context, mgr *Manager, packet *pb.Pack
 
 	created := <-session.created
 	close(session.created)
+
 	errorMsg := `Could not create game session because user is not active`
 	if !created {
-		// TODO tell the challenger that the session couldn't made
+		// tell the challenger that the session couldn't made
 		errLogger.Println(errorMsg)
 		mgr.deliver <- &pb.Packet{
 			From: ServerId,
@@ -219,9 +220,7 @@ func createNewGameSession(context context.Context, mgr *Manager, packet *pb.Pack
 	}
 
 	infoLogger.Println("game session successfully made, sending out begin msg")
-	fmt.Println("sending out challenger_init_msg")
 	// for challenger
-
 	fmt.Println("game_id_to_send:", ssid)
 	mgr.deliver <- &pb.Packet{
 		From: ServerId,
@@ -257,9 +256,7 @@ func createNewGameSession(context context.Context, mgr *Manager, packet *pb.Pack
 
 	go func() {
 		fmt.Println("started ticker")
-		// dur := defaultTickerRate
 		ticker := time.NewTicker(8 * time.Second)
-		// ticker := time.NewTicker(time.Duration(defaultTickerRate) * time.Second)
 		defer ticker.Stop()
 		defer fmt.Println("session terminated")
 
