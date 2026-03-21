@@ -109,17 +109,26 @@ func (m *Manager) Listen(ctx context.Context) {
 
 		case packet := <-m.deliver:
 			infoLogger.Printf("delivering message %+v\n", packet)
+			// REVIEW: Perfect, but like you did couple lines above
+			// would be nice to also set a write deadline,
+			// because that would mean the system is under pressure.
 			go m.sendPacket(packet)
 
 		case id := <-m.remove:
 			m.mu.Lock()
 			infoLogger.Printf("removing client: %s\n", id)
 			delete(m.connections, id)
+			// REVIEW: Might also be worth sending this into 
+			// a short lived routine, because the gameManager could 
+			// be doing something else that needs to block,but 
+			// shouldn't block this mainManager
+			// and this also holds the mutex, blocking other go-routines
 			m.GameManager.privateCh <- id.String()
 			m.mu.Unlock()
 
 		case game := <-m.game:
 			infoLogger.Printf("new game-play: %s\n", game)
+			// You get the gist
 			m.GameManager.Game <- game
 
 		case cmd := <-m.inbound:
@@ -127,6 +136,7 @@ func (m *Manager) Listen(ctx context.Context) {
 
 		case q := <-m.query:
 			infoLogger.Printf("new query response: %s\n", q.Query)
+			//  PERFECT
 			go m.executeQuery(q)
 
 		case cmd := <-m.GameManager.outbound:
