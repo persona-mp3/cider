@@ -174,7 +174,11 @@ func handleNewGameMessage(mgr *Manager, msg *pb.Packet) {
 }
 
 func createNewGameSession(mgr *Manager, packet *pb.Packet) {
+	infoLogger.Printf("[debug] cngs =================================================\n\n")
+	defer infoLogger.Printf("[debug] cngs =================================================\n\n")
+	infoLogger.Println("[debug] someone cannot be holding the lock can they?")
 	activeUsers := mgr.Snapshot()
+	infoLogger.Println("[debug] someone cannot be holding the lock can they?")
 	// check if the recipient is active
 	destUsername, found := activeUsers[packet.GetNewGame().Dest]
 	if !found {
@@ -200,11 +204,13 @@ func createNewGameSession(mgr *Manager, packet *pb.Packet) {
 		created:   make(chan bool, 1),
 		State:     initialState,
 		cmd:       make(chan GameCommand),
+		// outcmd:    make(chan GameCommand),
 	}
 
 	var responseTimeout = 3 * time.Second
 	timer := time.NewTimer(responseTimeout)
-	defer func() {
+
+	sendErrMsg := func() {
 		errorMsg := `Could not create game session because user is not active`
 		errLogger.Println(errorMsg)
 		mgr.deliver <- &pb.Packet{
@@ -218,18 +224,24 @@ func createNewGameSession(mgr *Manager, packet *pb.Packet) {
 				},
 			},
 		}
+	}
 
-	}()
+	infoLogger.Println("[debug] are you sure?")
 	select {
 	case <-timer.C:
 		infoLogger.Printf("timer passed and server did not send response for game creation\n")
+		sendErrMsg()
 		return
 	case mgr.GameManager.NewSessionCh <- session:
 	}
 
+	infoLogger.Println("gm has recvd session declaration")
+
 	// server should respond immediately
 	created := <-session.created
+	infoLogger.Println("mgr has said the sesion has been created: ", created)
 	if !created {
+		sendErrMsg()
 		return
 	}
 
@@ -276,6 +288,7 @@ func createNewGameSession(mgr *Manager, packet *pb.Packet) {
 		select {
 		case <-timer.C:
 			infoLogger.Printf("could not send NewGameResponse to players due to timeout")
+			sendErrMsg()
 			return
 		case mgr.deliver <- pkt:
 		}
@@ -293,6 +306,10 @@ func createNewGameSession(mgr *Manager, packet *pb.Packet) {
 			case <-ticker.C:
 				log.Println("hand-over turn")
 				ticker.Reset(8 * time.Second)
+				mgr.GameManager.publicCh <- &Command{
+					Id:      session.SessionId,
+					CmdType: Handover,
+				}
 
 			case <-session.interrupt:
 				fmt.Println("new game play, refreshing ticker")

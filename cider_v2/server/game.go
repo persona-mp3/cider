@@ -20,7 +20,7 @@ func (gm *GameManager) Listen(ctx context.Context) {
 	for {
 		select {
 		case newPlay := <-gm.Game:
-			infoLogger.Printf("new game packet %s\n", newPlay)
+			infoLogger.Printf("game manager recvd new game packet %+v\n", newPlay.GetPayload())
 			gm.processPlay(newPlay)
 
 		case newSession := <-gm.NewSessionCh:
@@ -31,6 +31,10 @@ func (gm *GameManager) Listen(ctx context.Context) {
 			gm.interruptGame(dropPlayer)
 			delete(gm.currentPlayers, dropPlayer)
 
+		case cmd := <-gm.publicCh:
+			infoLogger.Println("new message from public channel")
+			infoLogger.Printf("%+v\n", cmd)
+			gm.handlePublicCmd(cmd)
 		case <-ctx.Done():
 			errLogger.Printf("main manager cancelled, reason: %s\n", ctx.Err())
 		}
@@ -61,22 +65,27 @@ func (gm *GameManager) processPlay(packet *pb.Packet) {
 		if connId == connID(packet.From) {
 			continue
 		}
+		// my guess is this is where we were blocked?
+		// the mgr.game sends a msg to gm.Game and we're also
+		// trying to send to it here
 		// TODO(daniel) : Could make this a seperate go-routine
 		// But what if one client doesn't get the update? That'd be problematic
-		gm.outbound <- &Command{
-			Id:      gameServerId,
-			CmdType: Deliver,
-			Packet: &pb.Packet{
-				From: ServerId,
-				Dest: connId.String(),
-				Payload: &pb.Packet_Game{
-					Game: &pb.GameMessage{
-						Ssid: session.SessionId,
-						Play: session.State.updatedState,
+		go func() {
+			gm.outbound <- &Command{
+				Id:      gameServerId,
+				CmdType: Deliver,
+				Packet: &pb.Packet{
+					From: ServerId,
+					Dest: connId.String(),
+					Payload: &pb.Packet_Game{
+						Game: &pb.GameMessage{
+							Ssid: session.SessionId,
+							Play: session.State.updatedState,
+						},
 					},
 				},
-			},
-		}
+			}
+		}()
 	}
 }
 
@@ -104,10 +113,14 @@ func (gm *GameManager) newGameSession(gs *GameSession) {
 	go func() {
 		gs.created <- true
 	}()
+
+	//
 }
 
 func (gm *GameManager) interruptGame(playerId string) {
 	// find the game session playerId was in
+	infoLogger.Printf("[debug] IG ===================================================")
+	defer infoLogger.Printf("[debug] IG closed ===================================================")
 	sessionId, found := gm.currentPlayers[playerId]
 	if !found {
 		infoLogger.Printf("could not find the game player %s was in\n", playerId)
@@ -119,6 +132,7 @@ func (gm *GameManager) interruptGame(playerId string) {
 	for userId, ssid := range gm.currentPlayers {
 		// REVIEW: Same here, could consider a seperate goroutine
 		// or timeout
+		infoLogger.Println("[debug] { sending } CULPRIT?????, game-end to mgr")
 		gm.outbound <- &Command{
 			Id:      gameServerId,
 			CmdType: Deliver,
@@ -133,6 +147,8 @@ func (gm *GameManager) interruptGame(playerId string) {
 				},
 			},
 		}
+		infoLogger.Println("[debug] { sent } CULPRIT NO 😭")
+		delete(gm.currentPlayers, userId)
 	}
 
 	// find the session go-routine and terminate it

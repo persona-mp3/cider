@@ -22,6 +22,7 @@ type GameCommand int
 
 const (
 	TerminateGame GameCommand = iota
+	HandOver
 )
 
 type GameSession struct {
@@ -32,6 +33,7 @@ type GameSession struct {
 	interrupt chan any
 	created   chan bool
 	cmd       chan GameCommand
+	// outcmd    chan Command
 }
 
 type GameManager struct {
@@ -47,6 +49,8 @@ type GameManager struct {
 	Game         chan *pb.Packet
 	// Only recieves commands from mainManager
 	privateCh chan string
+
+	publicCh chan *Command
 	// Only sends commands to mainManager
 	outbound chan *Command
 }
@@ -82,10 +86,11 @@ func NewGameManager() *GameManager {
 	return &GameManager{
 		currentPlayers: make(map[string]string),
 		Sessions:       make(map[string]*GameSession),
-		NewSessionCh:   make(chan *GameSession, 60),
-		Game:           make(chan *pb.Packet, 60),
+		NewSessionCh:   make(chan *GameSession, 100),
+		Game:           make(chan *pb.Packet, 100),
 		outbound:       make(chan *Command),
 		privateCh:      make(chan string, 60),
+		publicCh:       make(chan *Command, 100),
 	}
 }
 
@@ -102,8 +107,6 @@ func (m *Manager) Listen(ctx context.Context) {
 		case client := <-m.register:
 			m.mu.Lock()
 			infoLogger.Printf("registering client: %s\n", client.connID)
-			// client.conn.SetWriteDeadline(time.Now().Add(WriteTimeout * 1000))
-			// client.conn.SetWriteDeadline(time.Now().Add(WriteTimeout * time.Second))
 			m.connections[client.connID] = client
 			m.mu.Unlock()
 
@@ -115,12 +118,15 @@ func (m *Manager) Listen(ctx context.Context) {
 			m.mu.Lock()
 			infoLogger.Printf("removing client: %s\n", id)
 			delete(m.connections, id)
-			m.GameManager.privateCh <- id.String()
 			m.mu.Unlock()
+			m.GameManager.privateCh <- id.String()
+			infoLogger.Printf("[debug] removed CLIENT SUCCESSFULLY\n ")
 
 		case game := <-m.game:
 			infoLogger.Printf("new game-play: %s\n", game)
-			m.GameManager.Game <- game
+			go func() {
+				m.GameManager.Game <- game
+			}()
 
 		case cmd := <-m.inbound:
 			infoLogger.Printf("received new cmd from node: %d, to run %v\n", cmd.Id, cmd.Packet)
@@ -140,11 +146,11 @@ func (m *Manager) Listen(ctx context.Context) {
 }
 
 func (m *Manager) handleOutbounds(cmd *Command) {
-	println("handling outbound command")
+	infoLogger.Println("handling outbound command")
 	switch cmd.CmdType {
 	case Deliver:
-		println("outbound_command: Deliver")
-		fmt.Printf("%v\n", cmd)
+		infoLogger.Println("Outbound command: Deliver")
+		infoLogger.Printf("%v\n", cmd)
 		go m.sendPacket(cmd.Packet)
 	}
 }
@@ -156,23 +162,26 @@ func (m *Manager) handleOutbounds(cmd *Command) {
 // and inactive users
 // It returns the uuid of each player mapped to their username
 func (mgr *Manager) Snapshot() map[string]string {
+	infoLogger.Printf("\n\n [debug] snapshot ===================================")
+	defer infoLogger.Printf("\n\n [debug] snapshot closed ===================================")
+	infoLogger.Println("[debug] taking snapshot")
+
 	mgr.mu.RLock()
 	snapshot := make(map[string]string)
 	for connId, client := range mgr.connections {
 		snapshot[string(connId)] = client.username
 	}
 	mgr.mu.RUnlock()
-	infoLogger.Println("connected user:")
-	for _, uname := range snapshot {
-		fmt.Printf("username: %s\n", uname)
-	}
+	infoLogger.Println("[debug] taken snapshot")
 	return snapshot
 }
 
 func (mgr *Manager) sendPacket(packet *pb.Packet) {
+	infoLogger.Printf("\n\n [debug] sendPacket ===================================")
+	defer infoLogger.Printf("\n\n [debug] sendPacket closed ===================================")
 	mgr.mu.RLock()
+	defer mgr.mu.RUnlock()
 
-	infoLogger.Println("sending packet...")
 	out, err := framer.MarshallPacket(packet, headerSize)
 	if err != nil {
 		errLogger.Printf("could not marhsall packet: %s\n", err)
@@ -185,11 +194,11 @@ func (mgr *Manager) sendPacket(packet *pb.Packet) {
 		errLogger.Printf("could not find dest: %s\n", destID)
 		return
 	}
-	mgr.mu.RUnlock()
 
-	fmt.Printf("dest: %s, from: %s\n", packet.Dest, packet.From)
+	fmt.Printf("sending packet:from: %s to: %s\n", packet.From, packet.Dest)
 	if _, err := client.conn.Write(out); err != nil {
 		errLogger.Printf("could not write to client: %s\n", err)
 		mgr.remove <- connID(destID)
+		errLogger.Println("informed manager to removed failed write to client")
 	}
 }
