@@ -174,11 +174,7 @@ func handleNewGameMessage(mgr *Manager, msg *pb.Packet) {
 }
 
 func createNewGameSession(mgr *Manager, packet *pb.Packet) {
-	infoLogger.Printf("[debug] cngs =================================================\n\n")
-	defer infoLogger.Printf("[debug] cngs =================================================\n\n")
-	infoLogger.Println("[debug] someone cannot be holding the lock can they?")
 	activeUsers := mgr.Snapshot()
-	infoLogger.Println("[debug] someone cannot be holding the lock can they?")
 	// check if the recipient is active
 	destUsername, found := activeUsers[packet.GetNewGame().Dest]
 	if !found {
@@ -226,7 +222,6 @@ func createNewGameSession(mgr *Manager, packet *pb.Packet) {
 		}
 	}
 
-	infoLogger.Println("[debug] are you sure?")
 	select {
 	case <-timer.C:
 		infoLogger.Printf("timer passed and server did not send response for game creation\n")
@@ -245,9 +240,8 @@ func createNewGameSession(mgr *Manager, packet *pb.Packet) {
 		return
 	}
 
-	infoLogger.Println("game session successfully made, sending out begin msg")
+	infoLogger.Println("game session successfully made, sending out init msg")
 	// for challenger
-	fmt.Println("game_id_to_send:", ssid)
 	if !timer.Stop() {
 		<-timer.C
 	}
@@ -296,23 +290,25 @@ func createNewGameSession(mgr *Manager, packet *pb.Packet) {
 
 	// this routine is handled by the game server, and is the only one allowed to terminate it
 	go func() {
-		fmt.Println("started ticker")
+		infoLogger.Println("started ticker")
 		ticker := time.NewTicker(8 * time.Second)
 		defer ticker.Stop()
-		defer fmt.Println("session terminated")
+		defer infoLogger.Println("session terminated")
 
 		for {
 			select {
 			case <-ticker.C:
 				log.Println("hand-over turn")
 				ticker.Reset(8 * time.Second)
-				mgr.GameManager.publicCh <- &Command{
-					Id:      session.SessionId,
-					CmdType: Handover,
-				}
+				go func() {
+					mgr.GameManager.publicCh <- &Command{
+						Id:      session.SessionId,
+						CmdType: Handover,
+					}
+				}()
 
 			case <-session.interrupt:
-				fmt.Println("new game play, refreshing ticker")
+				infoLogger.Println("Valid play, reseting timer")
 				ticker.Reset(8 * time.Second)
 
 			case cmd := <-session.cmd:
@@ -324,6 +320,8 @@ func createNewGameSession(mgr *Manager, packet *pb.Packet) {
 			}
 		}
 	}()
+
+	infoLogger.Println("GameSession successfully created")
 
 }
 func genID() connID {
