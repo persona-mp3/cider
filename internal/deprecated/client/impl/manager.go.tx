@@ -1,0 +1,46 @@
+package impl
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"net"
+
+	pb "github.com/persona-mp3/protocols/gen"
+)
+
+type ServerReaderFunc func(ctx context.Context, conn net.Conn) <-chan *pb.Packet
+type manager struct {
+	server       net.Conn
+	pipe         chan *pb.Packet
+	send         chan *pb.Packet
+	ServerReader ServerReaderFunc
+}
+
+func NewManager(server net.Conn) *manager {
+	return &manager{
+		server:       server,
+		send:         make(chan *pb.Packet, 1),
+		pipe:         make(chan *pb.Packet, 3),
+		// ServerReader: sr,
+	}
+}
+
+func (m *manager) Start(ctx context.Context) {
+	sr := m.ServerReader
+	fromServer := sr(ctx, m.server)
+	for {
+		select {
+		case <-ctx.Done():
+			slog.Info("[manager] context canceled", "err", ctx.Err())
+			return
+
+		case notification := <-fromServer:
+			m.pipe <- notification
+
+		case packet := <-m.send:
+			slog.Info("[manager] packet to send", slog.String("msg", fmt.Sprintf("%+v\n", packet)))
+		}
+
+	}
+}

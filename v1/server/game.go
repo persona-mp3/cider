@@ -35,7 +35,7 @@ func CreateGameNewGameSession(ctx context.Context, mgr *manager, req *pb.NewGame
 		Players:   []*Player{player1, player2},
 		Rate:      int32(defaultTickerRate),
 		State: &GameState{
-			lastPlayerId: string(player2.client.userId),
+			lastPlayerId: string(player2.client.connID),
 			updatedState: "",
 		},
 		interrupt: make(chan any),
@@ -127,12 +127,12 @@ func HandleGamePacket(mgr *manager, packet *pb.Packet) {
 	}
 
 	for _, player := range session.Players {
-		if packet.From == string(player.client.userId) {
+		if packet.From == string(player.client.connID) {
 			continue
 		}
 		mgr.deliver <- &pb.Packet{
 			From: "server",
-			Dest: string(player.client.userId),
+			Dest: string(player.client.connID),
 			Payload: &pb.Packet_Game{
 				Game: &pb.GameMessage{
 					// the client can peice the plays together
@@ -168,8 +168,8 @@ func (gs *GameState) updateState(playerId string, gm *pb.GameMessage) bool {
 func handOverTurn(gs *GameSession) {
 	var nextPlayer string
 	for _, p := range gs.Players {
-		if string(p.client.userId) != gs.State.lastPlayerId {
-			nextPlayer = string(p.client.userId)
+		if string(p.client.connID) != gs.State.lastPlayerId {
+			nextPlayer = string(p.client.connID)
 		}
 	}
 

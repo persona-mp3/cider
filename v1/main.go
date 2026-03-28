@@ -11,7 +11,7 @@ import (
 
 	"github.com/joho/godotenv"
 	db "github.com/persona-mp3/internal/database"
-	"github.com/persona-mp3/internal/server"
+	"github.com/persona-mp3/v1/server"
 )
 
 func loadEnv() *db.DBConfig {
